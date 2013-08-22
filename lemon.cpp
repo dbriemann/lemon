@@ -7,5 +7,9 @@ using namespace std;
 
 int main() {
 
+//    Board *board = new Board0x88();
+    Board0x88 board;
+    board.print();
+
     return 0;
 }
