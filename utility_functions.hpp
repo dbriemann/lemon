@@ -11,4 +11,8 @@ static string intToString(int number) {
    return ss.str();     //return a string with the contents of the stream
 }
 
+static void ERROR(const string msg) {
+    cerr << "ERROR: " << msg << endl;
+}
+
 #endif // UTILITY_FUNCTIONS_HPP

@@ -20,6 +20,8 @@
 
 #include <cstdint>
 #include <iostream>
+#include <sstream>
+#include <cstdlib>
 using namespace std;
 
 #include "Board.hpp"
@@ -43,12 +45,12 @@ struct Board0x88 : public Board {
 
     //Board interface methods
     int32_t eval();
-    uint8_t get(uint8_t x, uint8_t y);
+    uint8_t get(uint8_t x, uint8_t y) const;
     void set(uint8_t x, uint8_t y, uint8_t value);
-    string getFENCode();
-    void setFENCode(string fen);
+    string getFENCode() const;
+    void setFENPosition(string fen);
     void setStartingPosition();
-    void print();
+    void print() const;
 };
 
 //constructors & destructor
@@ -72,7 +74,7 @@ int32_t Board0x88::eval() {
     return 0;
 }
 
-uint8_t Board0x88::get(uint8_t x, uint8_t y) {
+uint8_t Board0x88::get(uint8_t x, uint8_t y) const {
     return this->board[16*y+x];
 }
 
@@ -80,7 +82,7 @@ void Board0x88::set(uint8_t x, uint8_t y, uint8_t value) {
     this->board[16*y+x] = value;
 }
 
-string Board0x88::getFENCode() {
+string Board0x88::getFENCode() const {
     string fen = "";
     int empty_count = 0;
 
@@ -98,41 +100,29 @@ string Board0x88::getFENCode() {
 
                 switch (c) {
                     case BLACK_PAWN:
-                        fen += 'p';
-                        break;
+                        fen += 'p'; break;
                     case BLACK_KNIGHT:
-                        fen += 'n';
-                        break;
+                        fen += 'n'; break;
                     case BLACK_BISHOP:
-                        fen += 'b';
-                        break;
+                        fen += 'b'; break;
                     case BLACK_ROOK:
-                        fen += 'r';
-                        break;
+                        fen += 'r'; break;
                     case BLACK_QUEEN:
-                        fen += 'q';
-                        break;
+                        fen += 'q'; break;
                     case BLACK_KING:
-                        fen += 'k';
-                        break;
+                        fen += 'k'; break;
                     case WHITE_PAWN:
-                        fen += 'P';
-                        break;
+                        fen += 'P'; break;
                     case WHITE_KNIGHT:
-                        fen += 'N';
-                        break;
+                        fen += 'N'; break;
                     case WHITE_BISHOP:
-                        fen += 'B';
-                        break;
+                        fen += 'B'; break;
                     case WHITE_ROOK:
-                        fen += 'R';
-                        break;
+                        fen += 'R'; break;
                     case WHITE_QUEEN:
-                        fen += 'Q';
-                        break;
+                        fen += 'Q'; break;
                     case WHITE_KING:
-                        fen += 'K';
-                        break;
+                        fen += 'K'; break;
                     default:
                         break;
                 }
@@ -195,11 +185,166 @@ string Board0x88::getFENCode() {
     return fen;
 }
 
-void Board0x88::setFENCode(string fen) {
+void Board0x88::setFENPosition(string fen) {
+    uint8_t x = 0;
+    uint8_t y = BOARD_SIZE - 1;
+    istringstream iss(fen);
+
+    //set piece positions
+    if(iss) {
+       string position;
+       iss >> position;
+       for(char c : position) {
+           if(c == '/') {
+               x = 0;
+               y--;
+           } else if(c >= '1' && c <= '8') {
+               int stop = x + static_cast<int>(c-'0');
+               for(; x < stop; x++) {
+                   this->set(x, y, EMPTY);
+               }
+           } else {
+               //handle pieces
+               switch(c) {
+                   //black pieces are lowercase letters
+                   case 'p':
+                       this->set(x, y, BLACK_PAWN); break;
+                   case 'n':
+                       this->set(x, y, BLACK_KNIGHT); break;
+                   case 'k':
+                       this->set(x, y, BLACK_KING); break;
+                   case 'b':
+                       this->set(x, y, BLACK_BISHOP); break;
+                   case 'r':
+                       this->set(x, y, BLACK_ROOK); break;
+                   case 'q':
+                       this->set(x, y, BLACK_QUEEN); break;
+
+                   //white pieces are uppercase letters
+                   case 'P':
+                       this->set(x, y, WHITE_PAWN); break;
+                   case 'N':
+                       this->set(x, y, WHITE_KNIGHT); break;
+                   case 'K':
+                       this->set(x, y, WHITE_KING); break;
+                   case 'B':
+                       this->set(x, y, WHITE_BISHOP); break;
+                   case 'R':
+                       this->set(x, y, WHITE_ROOK); break;
+                   case 'Q':
+                       this->set(x, y, WHITE_QUEEN); break;
+                   default:
+                       string err = "FEN CODE CORRUPTED (PIECE -> ";
+                       err += c; err += ")";
+                       ERROR(err); break;
+               }
+
+               x++;
+           }
+       }
+    } else {
+        ERROR("FEN CODE CORRUPTED (POSITION)");
+    }
+
+    //set player to move
+    if(iss) {
+        char c;
+        iss >> c;
+
+        if(c == 'w') {
+            this->to_move = WHITE;
+        } else if(c == 'b') {
+            this->to_move = BLACK;
+        } else {
+            string err = "FEN CODE CORRUPTED (COLOR ->";
+            err += c; err += ")";
+            ERROR(err);
+        }
+    } else {
+        ERROR("FEN CODE CORRUPTED (PLAYER TO MOVE)");
+    }
+
+    //set castling rights
+    if(iss) {
+        this->black_castle_long = this->black_castle_short = this->white_castle_long = this->white_castle_short = false;
+        string castle;
+        iss >> castle;
+
+        for(char c : castle) {
+            switch(c) {
+                case 'K':
+                    this->white_castle_short = true; break;
+                case 'Q':
+                    this->white_castle_long = true; break;
+                case 'k':
+                    this->black_castle_short = true; break;
+                case 'q':
+                    this->black_castle_long = true; break;
+                default:
+                    string err = "FEN CODE CORRUPTED (CASTLING RIGHTS ->";
+                    err += c; err += ")";
+                    ERROR(err);
+                    break;
+            }
+        }
+    } else {
+        ERROR("FEN CODE CORRUPTED (CASTLING RIGHTS)");
+    }
+
+    //set en passent state
+    if(iss) {
+        string ep;
+        iss >> ep;
+
+        if(ep == "-") {
+            //no en passent
+            this->en_passent_idx = NO_EN_PASSENT_INDEX;
+        } else {
+            for(int i = 0; i < ep.size(); i+=2) {
+                if(ep[i] >= 'a' && ep[i] <= 'h' && ep[i+1] >= '1' && ep[i+1] <= '8') {
+                    int x = ep[i] - 'a';
+                    int y = ep[i+1] - '1';
+                    this->en_passent_idx = static_cast<int>(16*y + x);
+                } else {
+                    string err = "FEN CODE CORRUPTED (EN PASSENT ->";
+                    err += ep; err += ")";
+                    ERROR(err);
+                }
+            }
+            if(ep.size() > 4 && ep[0] >= 'a' && ep[0] <= 'h' && ep[1] >= '1' && ep[2] <= '8') {
+
+            } else {
+
+            }
+        }
+
+    } else {
+        ERROR("FEN CODE CORRUPTED (EN PASSENT)");
+    }
+
+    //half moves until draw
+    if(iss) {
+        string s;
+        iss >> s;
+        //TODO -- CHECK ILLEGAL VALUES... atoi is bad
+        this->halfmove_number = atoi(s.c_str());
+    } else {
+        ERROR("FEN CODE CORRUPTED (HALF MOVES UNTIL DRAW)");
+    }
+
+    //next move number
+    if(iss) {
+        string s;
+        iss >> s;
+        //TODO -- CHECK ILLEGAL VALUES... atoi is bad
+        this->move_number = atoi(s.c_str());
+    } else {
+        ERROR("FEN CODE CORRUPTED (MOVE NUMBER)");
+    }
 
 }
 
-void Board0x88::print() {
+void Board0x88::print() const {
     cout << endl << "******************************************************************************" << endl << endl;
     cout << "      +---+---+---+---+---+---+---+---+" << endl;
     for(int y = BOARD_SIZE-1; y >= 0; y--) {
@@ -210,7 +355,6 @@ void Board0x88::print() {
         cout << endl;
         cout << "      +---+---+---+---+---+---+---+---+" << endl;
     }
-
     cout << "        a   b   c   d   e   f   g   h" << endl << endl << endl;
 
     cout << "   Color to move: " << COLORS[this->to_move] << endl;
@@ -249,7 +393,7 @@ void Board0x88::print() {
 }
 
 void Board0x88::setStartingPosition() {
-    setFENCode("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    setFENPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 }
 
 #endif // BOARD0X88_HPP
