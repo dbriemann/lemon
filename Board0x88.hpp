@@ -57,6 +57,10 @@ struct Board0x88 : public Board {
     void setFENPosition(string fen);
     void setStartingPosition();
     void print() const;
+    void genPseudoLegalMoves();
+
+    //non-interface functions
+    void genPseudoLegalMovesForPieces(list<Piece> &pieces);
 };
 
 //constructors & destructor
@@ -106,7 +110,37 @@ void Board0x88::set(uint8_t x, uint8_t y, uint8_t value) {
         p = &black_pieces.back();
     }
     squares[square] = p;
-    cout << p << endl;
+}
+
+void Board0x88::genPseudoLegalMoves() {
+    if(to_move == WHITE) {
+        genPseudoLegalMovesForPieces(white_pieces);
+    } else {
+        genPseudoLegalMovesForPieces(black_pieces);
+    }
+}
+
+void Board0x88::genPseudoLegalMovesForPieces(list<Piece> &pieces) {
+    //for every piece
+    for(Piece &p : pieces) {
+        uint8_t raw_type = p.type & MASK_RAW_PIECE_TYPE;
+
+        //test piece
+        switch(raw_type) {
+            case PAWN:
+                break;
+            case KNIGHT:
+                break;
+            case BISHOP:
+                break;
+            case ROOK:
+                break;
+            case QUEEN:
+                break;
+            case KING:
+                break;
+        }
+    }
 }
 
 string Board0x88::getFENCode() const {

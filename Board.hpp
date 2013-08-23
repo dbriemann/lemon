@@ -17,6 +17,7 @@ struct Board {
     virtual void setFENPosition(string fen) = 0;
     virtual void setStartingPosition() = 0;
     virtual void print() const = 0;
+    virtual void genPseudoLegalMoves() = 0;
 };
 
 #endif // BOARD_HPP
