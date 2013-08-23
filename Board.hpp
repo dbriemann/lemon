@@ -9,10 +9,12 @@
 #include <cstdint>
 using namespace std;
 
+#include "board0x88_constants.hpp"
+
 struct Board {
     virtual int32_t eval() = 0;
-    virtual uint8_t get(uint8_t x, uint8_t y) const = 0;
-    virtual void set(uint8_t x, uint8_t y, uint8_t value) = 0;
+    virtual uint8_t get(Index x, Index y) const = 0;
+    virtual void set(Index x, Index y, uint8_t value) = 0;
     virtual string getFENCode() const = 0;
     virtual void setFENPosition(string fen) = 0;
     virtual void setStartingPosition() = 0;

@@ -19,21 +19,53 @@ static void moveMake(Move &m, uint32_t ptype, uint32_t from, uint32_t to, uint32
     mtype <<= 11; //3 bits
     capture <<= 7; //4 bits;
     //still 7 bits unused --> move eval for move ordering?!
+
+    m = ptype | from | to | mtype | capture;
 }
 
-static string moveGetString(Move m) {
+static uint8_t moveGetPType(Move m) {
+    m >>= 28;
+    return static_cast<uint8_t>(m);
+}
+
+static uint8_t moveGetFrom(Move m) {
+    m >>= 21;
+    m = m & (0x7F);
+    return static_cast<uint8_t>(m);
+}
+
+static uint8_t moveGetTo(Move m) {
+    m >>= 14;
+    m = m & (0x7F);
+    return static_cast<uint8_t>(m);
+}
+
+static uint8_t moveGetMType(Move m) {
+    m >>= 11;
+    m = m & (0x7);
+    return static_cast<uint8_t>(m);
+}
+
+static uint8_t moveGetCapture(Move m) {
+    m >>= 7;
+    m = m & (0xF);
+    return static_cast<uint8_t>(m);
+}
+
+static string moveToString(Move m) {
     uint8_t ptype = moveGetPType(m);
-    uint8_t from = moveGetFrom();
-    uint8_t to = moveGetTo();
-    uint8_t mtype = moveGetMType();
-    uint8_t capture = moveGetCapture();
+    uint8_t from = moveGetFrom(m);
+    uint8_t to = moveGetTo(m);
+    uint8_t mtype = moveGetMType(m);
+    uint8_t capture = moveGetCapture(m);
+
+    string ret;
 
     if(mtype == MOVETYPE_CASTLE_SHORT) {
         ret = "0-0";
     } else if(mtype == MOVETYPE_CASTLE_LONG) {
         ret = "0-0-0";
     } else {
-        string ret = "";
         //piece if not pawn
         if(ptype != BLACK_PAWN && ptype != WHITE_PAWN) {
             ret += PIECE_SYMBOLS[ptype];
@@ -69,35 +101,9 @@ static string moveGetString(Move m) {
             ret+="=N";
         }
     }
+
+    return ret;
 }
 
-static uint8_t moveGetPType(Move m) {
-    m >>= 28;
-    return static_cast<uint8_t>(m);
-}
-
-static uint8_t moveGetFrom(Move m) {
-    m >>= 21;
-    m = m & (0x7F);
-    return static_cast<uint8_t>(m);
-}
-
-static uint8_t moveGetTo(Move m) {
-    m >>= 14;
-    m = m & (0x7F);
-    return static_cast<uint8_t>(m);
-}
-
-static uint8_t moveGetMType(Move m) {
-    m >>= 11;
-    m = m & (0x7);
-    return static_cast<uint8_t>(m);
-}
-
-static uint8_t moveGetCapture(Move m) {
-    m >>= 7;
-    m = m & (0xF);
-    return static_cast<uint8_t>(m);
-}
 
 #endif // MOVE_HPP

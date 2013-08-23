@@ -31,6 +31,7 @@ using namespace std;
 #include "board0x88_constants.hpp"
 #include "Board.hpp"
 #include "Piece.hpp"
+#include "Move.hpp"
 
 
 struct Board0x88 : public Board {
@@ -51,8 +52,8 @@ struct Board0x88 : public Board {
 
     //Board interface methods
     int32_t eval();
-    uint8_t get(uint8_t x, uint8_t y) const;
-    void set(uint8_t x, uint8_t y, uint8_t value);
+    uint8_t get(Index x, Index y) const;
+    void set(Index x, Index y, uint8_t value);
     string getFENCode() const;
     void setFENPosition(string fen);
     void setStartingPosition();
@@ -61,6 +62,7 @@ struct Board0x88 : public Board {
 
     //non-interface functions
     void genPseudoLegalMovesForPieces(list<Piece> &pieces);
+    void genPseudoLegalKingMoves(Index square);
 };
 
 //constructors & destructor
@@ -87,7 +89,7 @@ int32_t Board0x88::eval() {
     return 0;
 }
 
-uint8_t Board0x88::get(uint8_t x, uint8_t y) const {
+uint8_t Board0x88::get(Index x, Index y) const {
     const Piece * p = squares[16*y+x];
     if(p != NULL) {
         return p->type;
@@ -96,9 +98,9 @@ uint8_t Board0x88::get(uint8_t x, uint8_t y) const {
     }
 }
 
-void Board0x88::set(uint8_t x, uint8_t y, uint8_t value) {
+void Board0x88::set(Index x, Index y, uint8_t value) {
     //cout << "SET: " << (int)x << "," << (int)y << " : " << PIECE_SYMBOLS[value] << endl;
-    const uint8_t square = 16*y+x;
+    const Index square = 16*y+x;
     Piece * p = NULL;
     if(value >= WHITE_PAWN && value <= WHITE_QUEEN) {
         //cout << "ADD WHITE " << PIECE_SYMBOLS[value] << endl;
@@ -138,7 +140,40 @@ void Board0x88::genPseudoLegalMovesForPieces(list<Piece> &pieces) {
             case QUEEN:
                 break;
             case KING:
+                genPseudoLegalKingMoves(p.square);
                 break;
+        }
+    }
+}
+
+void Board0x88::genPseudoLegalKingMoves(Index square) {
+    Index target;
+    Index offset = 0;
+    if(to_move == BLACK) {
+        offset = 0x08;
+    }
+
+    for(const int8_t &d : KING_DELTAS) {
+        target = static_cast<int8_t>(square) + d;
+        //cout << "TARGET: " << (int)target << endl;
+
+        //if target is not occupied by a piece of the same color
+        if(target >= 0) {
+            Move m = 0;
+            uint8_t mtype = MOVETYPE_ORDINARY;
+            uint8_t capture = EMPTY;
+
+            if(squares[target] == NULL) {
+                //move
+                moveMake(m, WHITE_KING + offset, square, target, mtype, capture);
+                cout << moveToString(m) << ", " << endl;
+                //TODO.. castling
+            } else if(((squares[target]->type & MASK_COLOR) >> 3) != to_move) {
+                //capture
+                capture = EMPTY; //TODO
+                moveMake(m, WHITE_KING + offset, square, target, mtype, capture);
+                cout << moveToString(m) << ", " << endl;
+            }
         }
     }
 }
@@ -229,7 +264,7 @@ string Board0x88::getFENCode() const {
     //en passent
     if(this->en_passent_idx != NO_EN_PASSENT_INDEX) {
         char xx = CHESS_COORDS[this->en_passent_idx % 16];
-        uint8_t yy = (this->en_passent_idx / 16) + 1;
+        Index yy = (this->en_passent_idx / 16) + 1;
         fen += xx;
         fen += intToString(yy);
     } else {
@@ -247,8 +282,8 @@ string Board0x88::getFENCode() const {
 }
 
 void Board0x88::setFENPosition(string fen) {
-    uint8_t x = 0;
-    uint8_t y = BOARD_SIZE - 1;
+    Index x = 0;
+    Index y = BOARD_SIZE - 1;
     istringstream iss(fen);
     white_pieces.clear();
     black_pieces.clear();
@@ -442,7 +477,7 @@ void Board0x88::print() const {
     cout << "   En passent field: ";
     if(this->en_passent_idx != NO_EN_PASSENT_INDEX) {
         char xx = CHESS_COORDS[this->en_passent_idx % 16];
-        uint8_t yy = (this->en_passent_idx / 16) + 1;
+        Index yy = (this->en_passent_idx / 16) + 1;
         cout << xx << intToString(yy) << endl;
     } else {
         cout << "-" << endl;
