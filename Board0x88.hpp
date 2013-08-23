@@ -22,15 +22,21 @@
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
+#include <list>
 using namespace std;
 
-#include "Board.hpp"
 #include "engine_constants.hpp"
 #include "utility_constants.hpp"
 #include "utility_functions.hpp"
+#include "board0x88_constants.hpp"
+#include "Board.hpp"
+#include "Piece.hpp"
+
 
 struct Board0x88 : public Board {
-    uint8_t board[128];
+    list<Piece> white_pieces;
+    list<Piece> black_pieces;
+    Piece * squares[128];
     uint16_t move_number;
     uint16_t halfmove_number;
     uint8_t to_move;
@@ -55,8 +61,11 @@ struct Board0x88 : public Board {
 
 //constructors & destructor
 Board0x88::Board0x88() {
+    white_pieces = list<Piece>();
+    black_pieces = list<Piece>();
+
     for(int i = 0; i < 128; i++) {
-        board[i] = 0;
+        squares[i] = NULL;
     }
     move_number = 1;
     halfmove_number = 0;
@@ -75,11 +84,29 @@ int32_t Board0x88::eval() {
 }
 
 uint8_t Board0x88::get(uint8_t x, uint8_t y) const {
-    return this->board[16*y+x];
+    const Piece * p = squares[16*y+x];
+    if(p != NULL) {
+        return p->type;
+    } else {
+        return EMPTY;
+    }
 }
 
 void Board0x88::set(uint8_t x, uint8_t y, uint8_t value) {
-    this->board[16*y+x] = value;
+    //cout << "SET: " << (int)x << "," << (int)y << " : " << PIECE_SYMBOLS[value] << endl;
+    const uint8_t square = 16*y+x;
+    Piece * p = NULL;
+    if(value >= WHITE_PAWN && value <= WHITE_QUEEN) {
+        //cout << "ADD WHITE " << PIECE_SYMBOLS[value] << endl;
+        white_pieces.push_back(Piece(value, square));
+        p = &white_pieces.back();
+    } else if(value >= BLACK_PAWN && value <= BLACK_QUEEN) {
+        //cout << "ADD BLACK " << PIECE_SYMBOLS[value] << endl;
+        black_pieces.push_back(Piece(value, square));
+        p = &black_pieces.back();
+    }
+    squares[square] = p;
+    cout << p << endl;
 }
 
 string Board0x88::getFENCode() const {
@@ -189,6 +216,8 @@ void Board0x88::setFENPosition(string fen) {
     uint8_t x = 0;
     uint8_t y = BOARD_SIZE - 1;
     istringstream iss(fen);
+    white_pieces.clear();
+    black_pieces.clear();
 
     //set piece positions
     if(iss) {
@@ -351,6 +380,7 @@ void Board0x88::print() const {
         cout << "   " << intToString(y+1) << "  |";
         for(int x = 0; x < BOARD_SIZE; x++) {
             cout << " " << PIECE_SYMBOLS[this->get(x,y)] << " |";
+            //cout << " " << (int)this->get(x,y) << " |";
         }
         cout << endl;
         cout << "      +---+---+---+---+---+---+---+---+" << endl;

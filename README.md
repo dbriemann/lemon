@@ -11,7 +11,7 @@ Implementation
 Interface: Every board implementation must implement this.  
 
 ###Board0x88
-Struct: A 0x88 representation of the board.  
+Struct, implements Board: A 0x88 representation of the board.  
 ```cpp
  112 113 114 115 116 117 118 119 | 120 121 122 123 124 125 126 127  
   96  97  98  99 100 101 102 103 | 104 105 106 107 108 109 110 111  
@@ -28,3 +28,5 @@ if((index & 0x88) != 0) {
 	//square note on board..
 }
 ```
+Only having one check for legal squares is important for move generation.  
+
