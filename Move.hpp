@@ -70,6 +70,7 @@ static string moveToString(Move m) {
         //piece if not pawn
         if(ptype != BLACK_PAWN && ptype != WHITE_PAWN) {
             ret += PIECE_SYMBOLS[ptype];
+            //ret += intToString(ptype);
         }
         //from
         char xx = CHESS_COORDS[from % 16];

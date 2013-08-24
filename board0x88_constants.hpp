@@ -34,12 +34,12 @@ static const uint8_t BLACK_BISHOP = 0x0D;
 static const uint8_t BLACK_ROOK   = 0x0E;
 static const uint8_t BLACK_QUEEN  = 0x0F;
 
-static const uint8_t PAWN   = 0x01;
-static const uint8_t KNIGHT = 0x02;
-static const uint8_t KING   = 0x03;
-static const uint8_t BISHOP = 0x05;
-static const uint8_t ROOK   = 0x06;
-static const uint8_t QUEEN  = 0x07;
+static const uint8_t PAWN   = WHITE_PAWN;
+static const uint8_t KNIGHT = WHITE_KNIGHT;
+static const uint8_t KING   = WHITE_KING;
+static const uint8_t BISHOP = WHITE_BISHOP;
+static const uint8_t ROOK   = WHITE_ROOK;
+static const uint8_t QUEEN  = WHITE_QUEEN;
 
 //bitmasks
 static const uint8_t MASK_RAW_PIECE_TYPE = 0x07;
