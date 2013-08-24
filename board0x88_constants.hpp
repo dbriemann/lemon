@@ -3,6 +3,19 @@
 
 typedef int8_t Index;
 
+//castling squares
+static const Index WHITE_CASTLE_SHORT_PATH[2] = {0x05,0x06};
+static const Index WHITE_CASTLE_SHORT_SQUARE = 0x06;
+static const Index WHITE_CASTLE_LONG_PATH[2] = {0x03,0x02};
+static const Index WHITE_CASTLE_LONG_SQUARE = 0x02;
+static const Index BLACK_CASTLE_SHORT_PATH[2] = {0x75,0x76};
+static const Index BLACK_CASTLE_SHORT_SQUARE = 0x76;
+static const Index BLACK_CASTLE_LONG_PATH[2] = {0x73,0x72};
+static const Index BLACK_CASTLE_LONG_SQUARE = 0x72;
+
+//pawn starting squares, for double jump
+static const Index PAWN_DOUBLE_JUMP_RANGE[2][2] = {{0x10, 0x17}, {0x60, 0x67}};
+
 //piece values on board
 static const uint8_t EMPTY        = 0x00;
 static const uint8_t WHITE_PAWN   = 0x01;
@@ -46,7 +59,6 @@ static const Index ROOK_DELTAS[4]  = {16, -1, 1, -16};
 static const Index BISHOP_DELTAS[4] = {15, 17, -17,  -15};
 static const Index KNIGHT_DELTAS[8] = {14, 31, 33, 18, -14, -31, -33, -18};
 static const Index KING_DELTAS[8] = {15, 16, 17, -1, 1, -17, -16, -15};
-static const Index WHITE_PAWN_DELTAS[4] = {16, 32, 15, 17}; //advance one, two, capture left, capture right
-static const Index BLACK_PAWN_DELTAS[4] = {-16, -32, -17, -15}; //advance one, two, capture left, capture right
+static const Index PAWN_DELTAS[2][3] = {{16, 15, 17}, {-16, -17, -15}}; //advance one, two, capture left, capture right //advance one, two, capture left, capture right
 
 #endif // BOARD0X88_CONSTANTS_HPP

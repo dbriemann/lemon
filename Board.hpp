@@ -7,9 +7,11 @@
 
 #include <string>
 #include <cstdint>
+#include <list>
 using namespace std;
 
 #include "board0x88_constants.hpp"
+#include "Move.hpp"
 
 struct Board {
     virtual int32_t eval() = 0;
@@ -19,7 +21,7 @@ struct Board {
     virtual void setFENPosition(string fen) = 0;
     virtual void setStartingPosition() = 0;
     virtual void print() const = 0;
-    virtual void genPseudoLegalMoves() = 0;
+    virtual list<Move> genPseudoLegalMoves() = 0;
 };
 
 #endif // BOARD_HPP
