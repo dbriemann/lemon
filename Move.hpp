@@ -13,6 +13,7 @@ using namespace std;
 typedef uint32_t Move;
 
 static void moveMake(Move &m, uint32_t ptype, uint32_t from, uint32_t to, uint32_t mtype, uint32_t capture) {
+    m = 0;
     ptype <<= 28; //4 bits
     from <<= 21; //7 bits
     to <<= 14; //7 bits

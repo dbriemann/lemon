@@ -13,8 +13,11 @@ static const Index BLACK_CASTLE_SHORT_SQUARE = 0x76;
 static const Index BLACK_CASTLE_LONG_PATH[2] = {0x73,0x72};
 static const Index BLACK_CASTLE_LONG_SQUARE = 0x72;
 
-//pawn starting squares, for double jump
+//pawn starting square range, for two step advance
 static const Index PAWN_DOUBLE_JUMP_RANGE[2][2] = {{0x10, 0x17}, {0x60, 0x67}};
+
+//pawn promotion range
+static const Index PAWN_PROMOTION_RANGE[2][2] = {{0x70, 0x77}, {0x00, 0x07}};
 
 //piece values on board
 static const uint8_t EMPTY        = 0x00;
