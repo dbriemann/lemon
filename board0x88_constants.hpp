@@ -1,23 +1,27 @@
 #ifndef BOARD0X88_CONSTANTS_HPP
 #define BOARD0X88_CONSTANTS_HPP
 
-typedef int8_t Index;
+typedef uint8_t Index;
+typedef int8_t Offset;
+
+static const uint8_t PAWN_DOUBLE_STEP_DIST = 32;
 
 //castling squares
-static const Index WHITE_CASTLE_SHORT_PATH[2] = {0x05,0x06};
-static const Index WHITE_CASTLE_SHORT_SQUARE = 0x06;
-static const Index WHITE_CASTLE_LONG_PATH[2] = {0x03,0x02};
-static const Index WHITE_CASTLE_LONG_SQUARE = 0x02;
-static const Index BLACK_CASTLE_SHORT_PATH[2] = {0x75,0x76};
-static const Index BLACK_CASTLE_SHORT_SQUARE = 0x76;
-static const Index BLACK_CASTLE_LONG_PATH[2] = {0x73,0x72};
-static const Index BLACK_CASTLE_LONG_SQUARE = 0x72;
+static const Index CASTLE_SHORT_ROOK_PATH[2][2] = {{0x07, 0x05},{0x77, 0x75}};
+static const Index CASTLE_SHORT_PATH[2][2] = {{0x05, 0x06}, {0x75, 0x76}};
+static const Index CASTLE_SHORT_SQUARE[2] = {0x06, 0x76};
+static const Index CASTLE_LONG_ROOK_PATH[2][2] = {{0x07, 0x05},{0x77, 0x75}};
+static const Index CASTLE_LONG_PATH[2][2] = {{0x03, 0x02}, {0x73, 0x72}};
+static const Index CASTLE_LONG_SQUARE[2] = {0x02, 0x72};
 
 //pawn starting square range, for two step advance
-static const Index PAWN_DOUBLE_JUMP_RANGE[2][2] = {{0x10, 0x17}, {0x60, 0x67}};
+static const Index PAWN_DOUBLE_STEP_RANGE[2][2] = {{0x10, 0x17}, {0x60, 0x67}};
 
 //pawn promotion range
 static const Index PAWN_PROMOTION_RANGE[2][2] = {{0x70, 0x77}, {0x00, 0x07}};
+
+//color piece offset
+static const uint8_t COLOR_PIECE_OFFSET[2] = {0x00, 0x08}; //white, black
 
 //piece values on board
 static const uint8_t EMPTY        = 0x00;
@@ -45,6 +49,7 @@ static const uint8_t QUEEN  = WHITE_QUEEN;
 static const uint8_t MASK_RAW_PIECE_TYPE = 0x07;
 static const uint8_t MASK_SLIDING_PIECE = 0x04;
 static const uint8_t MASK_COLOR = 0x08;
+static const uint8_t MASK_PIECE = 0x07;
 
 //move types
 static const uint8_t MOVETYPE_ORDINARY      = 0x0;
@@ -57,11 +62,11 @@ static const uint8_t MOVETYPE_PROMOTION_B   = 0x6;
 static const uint8_t MOVETYPE_PROMOTION_N   = 0x7;
 
 //deltas for piece movement
-static const Index QUEEN_DELTAS[8] = {15, 16, 17, -1, 1, -17, -16, -15};
-static const Index ROOK_DELTAS[4]  = {16, -1, 1, -16};
-static const Index BISHOP_DELTAS[4] = {15, 17, -17,  -15};
-static const Index KNIGHT_DELTAS[8] = {14, 31, 33, 18, -14, -31, -33, -18};
-static const Index KING_DELTAS[8] = {15, 16, 17, -1, 1, -17, -16, -15};
-static const Index PAWN_DELTAS[2][3] = {{16, 15, 17}, {-16, -17, -15}}; //advance one, two, capture left, capture right //advance one, two, capture left, capture right
+static const Offset QUEEN_DELTAS[8] = {15, 16, 17, -1, 1, -17, -16, -15};
+static const Offset ROOK_DELTAS[4]  = {16, -1, 1, -16};
+static const Offset BISHOP_DELTAS[4] = {15, 17, -17,  -15};
+static const Offset KNIGHT_DELTAS[8] = {14, 31, 33, 18, -14, -31, -33, -18};
+static const Offset KING_DELTAS[8] = {15, 16, 17, -1, 1, -17, -16, -15};
+static const Offset PAWN_DELTAS[2][3] = {{16, 15, 17}, {-16, -17, -15}}; //advance one, two, capture left, capture right //advance one, two, capture left, capture right
 
 #endif // BOARD0X88_CONSTANTS_HPP

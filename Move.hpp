@@ -69,7 +69,7 @@ static string moveToString(Move m) {
     } else {
         //piece if not pawn
         if(ptype != BLACK_PAWN && ptype != WHITE_PAWN) {
-            ret += PIECE_SYMBOLS[ptype];
+            ret += PIECE_SYMBOLS[ptype & MASK_PIECE];
             //ret += intToString(ptype);
         }
         //from
@@ -82,7 +82,7 @@ static string moveToString(Move m) {
             ret+="x";
             //target piece if not pawn
             if(capture != WHITE_PAWN && capture != BLACK_PAWN) {
-                ret += PIECE_SYMBOLS[capture];
+                ret += PIECE_SYMBOLS[capture & MASK_PIECE];
             }
         }
         //to

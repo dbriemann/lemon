@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <vector>
 using namespace std;
 
 #include "Board.hpp"
@@ -9,18 +10,38 @@ using namespace std;
 int main() {
 
     Board *board = new Board0x88();
-    //board->setStartingPosition();
+    board->setStartingPosition();
     //board->print();
-    //board->setFENPosition("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2");
-    //board->setFENPosition("r1b2bnr/1pqkpPpp/p1n5/1Bpp4/8/5N2/PPPP1PPP/RNBQK2R w KQ - 0 7");
-    board->setFENPosition("r1b2bnr/1pqkpPpp/p1B5/2pp4/8/5N2/PPPP1PPP/RNBQK2R b KQ - 0 7");
-    board->print();
-    list<Move> moves = board->genPseudoLegalMoves();
 
-    for(Move m : moves) {
-        cout << moveToString(m) << ", ";
+    //board->setFENPosition("r1b2bnr/1pqkpPpp/p1B5/2pp4/8/5N2/PPPP1PPP/RNBQK2R b KQ - 0 7");
+    //board->print();
+    //((Board0x88 *)board)->removePiece(0, ((Board0x88 *)board)->pieces[WHITE]);
+    //board->print();
+
+
+    while(true) {
+        uint8_t last_ptype = PAWN;
+        board->print();
+        vector<Move> moves = board->genPseudoLegalMoves();
+
+        int i = 0;
+        for(Move m : moves) {
+            if((moveGetPType(m) & MASK_PIECE) != last_ptype) {
+                cout << endl;
+                last_ptype = moveGetPType(m) & MASK_PIECE;
+            }
+            cout << i << ": " << moveToString(m) << " ";
+            i++;
+        }
+        cout << endl;
+
+        cout << "Enter Move number: " << endl;
+        int mnum = 0;
+        cin >> mnum;
+        cout << endl;
+
+        board->makeMove(moves[mnum]);
     }
-    cout << endl;
 
 
     return 0;

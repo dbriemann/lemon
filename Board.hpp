@@ -7,7 +7,7 @@
 
 #include <string>
 #include <cstdint>
-#include <list>
+#include <vector>
 using namespace std;
 
 #include "board0x88_constants.hpp"
@@ -21,7 +21,8 @@ struct Board {
     virtual void setFENPosition(string fen) = 0;
     virtual void setStartingPosition() = 0;
     virtual void print() const = 0;
-    virtual list<Move> genPseudoLegalMoves() = 0;
+    virtual vector<Move> genPseudoLegalMoves() = 0;
+    virtual void makeMove(const Move m) = 0;
 };
 
 #endif // BOARD_HPP
