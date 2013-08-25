@@ -40,13 +40,11 @@ struct Board0x88 : public Board {
     list<Piece> pieces[2];
     Piece * squares[128];
     uint16_t move_number;
-    uint16_t halfmove_number;
+    uint16_t halfmove_draw_counter;
     uint8_t to_move;
-    uint8_t en_passent_idx;
-    bool white_castle_short;
-    bool white_castle_long;
-    bool black_castle_short;
-    bool black_castle_long;
+    uint8_t en_passent_square;
+    bool castle_short[2];
+    bool castle_long[2];
     stack<Move> move_history;
 
     //constructors & destructor
@@ -82,13 +80,14 @@ Board0x88::Board0x88() {
         squares[i] = NULL;
     }
     move_number = 1;
-    halfmove_number = 0;
+    halfmove_draw_counter = 0;
     to_move = WHITE;
-    en_passent_idx = NO_EN_PASSENT_INDEX;
-    white_castle_short = true;
-    white_castle_long = true;
-    black_castle_short = true;
-    black_castle_long = true;
+    en_passent_square = NO_EN_PASSENT_INDEX;
+
+    castle_short[WHITE] = true;
+    castle_short[BLACK] = true;
+    castle_long[WHITE] = true;
+    castle_long[BLACK] = true;
 }
 
 bool Board0x88::isOnBoard(const Index idx) const {
@@ -112,7 +111,6 @@ uint8_t Board0x88::get(Index x, Index y) const {
 }
 
 void Board0x88::set(Index x, Index y, uint8_t value) {
-    //cout << "SET: " << (int)x << "," << (int)y << " : " << PIECE_SYMBOLS[value] << endl;
     const Index square = 16*y+x;
     Piece * p = NULL;
     if(value >= WHITE_PAWN && value <= WHITE_QUEEN) {
@@ -152,53 +150,55 @@ void Board0x88::makeMove(const Move m) {
 
     //after swap piece is removed at origin, only used if capture occurs, en passent overwrites this
     Index capture_square = from;
+    Index new_ep_square = NO_EN_PASSENT_INDEX;
 
     //move piece
     swap(squares[from], squares[to]);
     squares[to]->square = to;
 
+    //increase half move counter to regard 50 moves draw rule
+    //if a piece was captured or a pawn was moved the counter is reset to 0 below
+    halfmove_draw_counter++;
+
     switch(mtype) {
         case MOVETYPE_CASTLE_LONG: //no captures
             swap(squares[CASTLE_LONG_ROOK_PATH[to_move][0]], squares[CASTLE_LONG_ROOK_PATH[to_move][1]]); //move rook
             squares[CASTLE_LONG_ROOK_PATH[to_move][1]]->square = CASTLE_LONG_ROOK_PATH[to_move][1];
-            en_passent_idx = NO_EN_PASSENT_INDEX; //reset en passent index
             break;
         case MOVETYPE_CASTLE_SHORT: //no captures
             swap(squares[CASTLE_SHORT_ROOK_PATH[to_move][0]], squares[CASTLE_SHORT_ROOK_PATH[to_move][1]]); //move rook
             squares[CASTLE_SHORT_ROOK_PATH[to_move][1]]->square = CASTLE_SHORT_ROOK_PATH[to_move][1];
-            en_passent_idx = NO_EN_PASSENT_INDEX; //reset en passent index
             break;
         case MOVETYPE_EN_PASSENT:
+            halfmove_draw_counter = 0; //RESET DRAW COUNTER
             capture_square = to - PAWN_DELTAS[to_move][0];
-            en_passent_idx = NO_EN_PASSENT_INDEX; //reset en passent index
             break;
         case MOVETYPE_ORDINARY: //allows captures
             //if piece is a pawn of any color
             if((ptype & MASK_PIECE) == PAWN) {
+                halfmove_draw_counter = 0; //RESET DRAW COUNTER
                 //if pawn move was a two step move..
                 uint8_t dist = abs((int)from - (int)to);
                 if(dist == PAWN_DOUBLE_STEP_DIST) {
-                    en_passent_idx = from + PAWN_DELTAS[to_move][0];
-                } else {
-                    en_passent_idx = NO_EN_PASSENT_INDEX; //reset en passent index
+                    new_ep_square = from + PAWN_DELTAS[to_move][0];
                 }
             }
             break;
         case MOVETYPE_PROMOTION_B: //allows captures
+            halfmove_draw_counter = 0; //RESET DRAW COUNTER
             squares[to]->type = BISHOP + COLOR_PIECE_OFFSET[to_move];
-            en_passent_idx = NO_EN_PASSENT_INDEX; //reset en passent index
             break;
         case MOVETYPE_PROMOTION_N: //allows captures
+            halfmove_draw_counter = 0; //RESET DRAW COUNTER
             squares[to]->type = KNIGHT + COLOR_PIECE_OFFSET[to_move];
-            en_passent_idx = NO_EN_PASSENT_INDEX; //reset en passent index
             break;
         case MOVETYPE_PROMOTION_Q: //allows captures
+            halfmove_draw_counter = 0; //RESET DRAW COUNTER
             squares[to]->type = QUEEN + COLOR_PIECE_OFFSET[to_move];
-            en_passent_idx = NO_EN_PASSENT_INDEX; //reset en passent index
             break;
         case MOVETYPE_PROMOTION_R: //allows captures
+            halfmove_draw_counter = 0; //RESET DRAW COUNTER
             squares[to]->type = ROOK + COLOR_PIECE_OFFSET[to_move];
-            en_passent_idx = NO_EN_PASSENT_INDEX; //reset en passent index
             break;
         default:
             break;
@@ -208,7 +208,34 @@ void Board0x88::makeMove(const Move m) {
     if(capture != EMPTY) {
         squares[capture_square]->square = capture_square;
         removePiece(capture_square, pieces[(to_move+1) % 2]); //capture
+        halfmove_draw_counter = 0; //RESET
     }
+
+    //castling rights
+    //if king has moved, disable castling
+    if((ptype & MASK_PIECE) == KING) {
+        castle_short[to_move] = false;
+        castle_long[to_move] = false;
+    }
+    //check if rook is not on origin square
+    //short
+    Piece *origin_rook = squares[CASTLE_SHORT_ROOK_PATH[to_move][0]];
+    if(origin_rook == NULL || (origin_rook->type & MASK_PIECE) != ROOK) {
+        castle_short[to_move] = false;
+    }
+    //long
+    origin_rook = squares[CASTLE_LONG_ROOK_PATH[to_move][0]];
+    if(origin_rook == NULL || (origin_rook->type & MASK_PIECE) != ROOK) {
+        castle_long[to_move] = false;
+    }
+
+    //only count complete moves.. no half moves
+    if(to_move == BLACK) {
+        move_number++;
+    }
+
+    //set en passent index
+    en_passent_square = new_ep_square;
 
     //change color
     to_move = (to_move + 1) % 2;
@@ -298,7 +325,6 @@ void Board0x88::genPseudoLegalSlidingPieceMoves(Index square, const uint8_t ptyp
                 moves.push_back(m);
                 break; //finish slide
             } else {
-                //cout << "STOP SLIDE: " << (int)target << endl;
                 break; //finish slide
             }
             target = target + d;
@@ -361,7 +387,7 @@ void Board0x88::genPseudoLegalPawnMoves(Index square, vector<Move> &moves) {
                     moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
                     moves.push_back(m);
                 }
-            } else if(squares[target] == NULL && target == en_passent_idx) {
+            } else if(squares[target] == NULL && target == en_passent_square) {
                 //en passent
                 moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_EN_PASSENT, squares[target+PAWN_DELTAS[(to_move+1) % 2][0]]->type);
                 moves.push_back(m);
@@ -395,26 +421,26 @@ void Board0x88::genPseudoLegalKingMoves(Index square, vector<Move> &moves) {
     //castling
     if(to_move == WHITE) {
         //castling kingside
-        if(white_castle_short && squares[CASTLE_SHORT_PATH[WHITE][0]] == NULL && squares[CASTLE_SHORT_PATH[WHITE][1]] == NULL) {
+        if(castle_short[WHITE] && squares[CASTLE_SHORT_PATH[WHITE][0]] == NULL && squares[CASTLE_SHORT_PATH[WHITE][1]] == NULL) {
             target = CASTLE_SHORT_SQUARE[WHITE];
             moveMake(m, WHITE_KING, square, target, MOVETYPE_CASTLE_SHORT, EMPTY);
             moves.push_back(m);
         }
         //castling queenside
-        if(white_castle_long && squares[CASTLE_LONG_PATH[WHITE][0]] == NULL && squares[CASTLE_LONG_PATH[WHITE][1]] == NULL) {
+        if(castle_long[WHITE] && squares[CASTLE_LONG_PATH[WHITE][0]] == NULL && squares[CASTLE_LONG_PATH[WHITE][1]] == NULL) {
             target = CASTLE_LONG_SQUARE[WHITE];
             moveMake(m, WHITE_KING, square, target, MOVETYPE_CASTLE_LONG, EMPTY);
             moves.push_back(m);
         }
     } else { //black
         //castling kingside
-        if(black_castle_short && squares[CASTLE_SHORT_PATH[BLACK][0]] == NULL && squares[CASTLE_SHORT_PATH[BLACK][1]] == NULL) {
+        if(castle_short[BLACK] && squares[CASTLE_SHORT_PATH[BLACK][0]] == NULL && squares[CASTLE_SHORT_PATH[BLACK][1]] == NULL) {
             target = CASTLE_SHORT_SQUARE[BLACK];
             moveMake(m, BLACK_KING, square, target, MOVETYPE_CASTLE_SHORT, EMPTY);
             moves.push_back(m);
         }
         //castling queenside
-        if(black_castle_long && squares[CASTLE_LONG_PATH[BLACK][0]] == NULL && squares[CASTLE_LONG_PATH[BLACK][1]] == NULL) {
+        if(castle_long[WHITE] && squares[CASTLE_LONG_PATH[BLACK][0]] == NULL && squares[CASTLE_LONG_PATH[BLACK][1]] == NULL) {
             target = CASTLE_LONG_SQUARE[BLACK];
             moveMake(m, BLACK_KING, square, target, MOVETYPE_CASTLE_LONG, EMPTY);
             moves.push_back(m);
@@ -488,27 +514,27 @@ string Board0x88::getFENCode() const {
     fen += " ";
 
     //castling rights
-    if(this->white_castle_short) {
+    if(this->castle_short[WHITE]) {
         fen += "K";
     }
-    if(this->white_castle_long) {
+    if(this->castle_long[WHITE]) {
         fen += "Q";
     }
-    if(this->black_castle_short) {
+    if(this->castle_short[BLACK]) {
         fen += "k";
     }
-    if(this->black_castle_long) {
+    if(this->castle_long[BLACK]) {
         fen += "q";
     }
-    if(!this->white_castle_short && !this->white_castle_long && !this->black_castle_short && !this->black_castle_long) {
+    if(!this->castle_short[WHITE] && !this->castle_long[WHITE] && !this->castle_short[BLACK] && !castle_long[BLACK]) {
         fen += "-";
     }
     fen += " ";
 
     //en passent
-    if(this->en_passent_idx != NO_EN_PASSENT_INDEX) {
-        char xx = CHESS_COORDS[this->en_passent_idx % 16];
-        Index yy = (this->en_passent_idx / 16) + 1;
+    if(this->en_passent_square != NO_EN_PASSENT_INDEX) {
+        char xx = CHESS_COORDS[this->en_passent_square % 16];
+        Index yy = (this->en_passent_square / 16) + 1;
         fen += xx;
         fen += intToString(yy);
     } else {
@@ -517,7 +543,7 @@ string Board0x88::getFENCode() const {
     fen += " ";
 
     //50 half moves until draw
-    fen += intToString(this->halfmove_number) + " ";
+    fen += intToString(this->halfmove_draw_counter) + " ";
 
     //moves
     fen += intToString(this->move_number) + " ";
@@ -608,20 +634,20 @@ void Board0x88::setFENPosition(string fen) {
 
     //set castling rights
     if(iss) {
-        this->black_castle_long = this->black_castle_short = this->white_castle_long = this->white_castle_short = false;
+        this->castle_long[BLACK] = this->castle_long[WHITE] = this->castle_short[BLACK] = this->castle_short[WHITE] = false;
         string castle;
         iss >> castle;
 
         for(char c : castle) {
             switch(c) {
                 case 'K':
-                    this->white_castle_short = true; break;
+                    this->castle_short[WHITE]  = true; break;
                 case 'Q':
-                    this->white_castle_long = true; break;
+                    this->castle_long[WHITE] = true; break;
                 case 'k':
-                    this->black_castle_short = true; break;
+                    this->castle_short[BLACK] = true; break;
                 case 'q':
-                    this->black_castle_long = true; break;
+                    this->castle_long[BLACK] = true; break;
                 default:
                     string err = "FEN CODE CORRUPTED (CASTLING RIGHTS ->";
                     err += c; err += ")";
@@ -640,13 +666,13 @@ void Board0x88::setFENPosition(string fen) {
 
         if(ep == "-") {
             //no en passent
-            this->en_passent_idx = NO_EN_PASSENT_INDEX;
+            this->en_passent_square = NO_EN_PASSENT_INDEX;
         } else {
             for(int i = 0; i < ep.size(); i+=2) {
                 if(ep[i] >= 'a' && ep[i] <= 'h' && ep[i+1] >= '1' && ep[i+1] <= '8') {
                     int x = ep[i] - 'a';
                     int y = ep[i+1] - '1';
-                    this->en_passent_idx = (int)(16*y + x);
+                    this->en_passent_square = (int)(16*y + x);
                 } else {
                     string err = "FEN CODE CORRUPTED (EN PASSENT ->";
                     err += ep; err += ")";
@@ -669,7 +695,7 @@ void Board0x88::setFENPosition(string fen) {
         string s;
         iss >> s;
         //TODO -- CHECK ILLEGAL VALUES... atoi is bad
-        this->halfmove_number = atoi(s.c_str());
+        this->halfmove_draw_counter = atoi(s.c_str());
     } else {
         ERROR("FEN CODE CORRUPTED (HALF MOVES UNTIL DRAW)");
     }
@@ -703,31 +729,31 @@ void Board0x88::print() const {
     cout << "   Color to move: " << COLORS[this->to_move] << endl;
 
     cout << "   Castling rights --- White: ";
-    if(this->white_castle_short) {
+    if(this->castle_short[WHITE]) {
         cout << "0-0 ";
     }
-    if(this->white_castle_long) {
+    if(this->castle_long[WHITE]) {
         cout << "0-0-0 ";
     }
     cout << "   Black: ";
-    if(this->black_castle_short) {
+    if(this->castle_short[BLACK]) {
         cout << "0-0 ";
     }
-    if(this->black_castle_long) {
+    if(this->castle_long[WHITE]) {
         cout << "0-0-0 ";
     }
     cout << endl;
 
     cout << "   En passent field: ";
-    if(this->en_passent_idx != NO_EN_PASSENT_INDEX) {
-        char xx = CHESS_COORDS[this->en_passent_idx % 16];
-        Index yy = (this->en_passent_idx / 16) + 1;
+    if(this->en_passent_square != NO_EN_PASSENT_INDEX) {
+        char xx = CHESS_COORDS[this->en_passent_square % 16];
+        Index yy = (this->en_passent_square / 16) + 1;
         cout << xx << intToString(yy) << endl;
     } else {
         cout << "-" << endl;
     }
 
-    cout << "   50 moves draw counter: " << intToString(this->halfmove_number) << endl;
+    cout << "   50 moves draw counter: " << intToString(this->halfmove_draw_counter) << endl;
 
     cout << "   Next move number: " << intToString(this->move_number) << endl;
 

@@ -1,6 +1,8 @@
 
 #include <iostream>
 #include <vector>
+#include <cstdio>
+#include <ctime>
 using namespace std;
 
 #include "Board.hpp"
@@ -8,6 +10,7 @@ using namespace std;
 #include "Move.hpp"
 
 int main() {
+    srand(time(0));
 
     Board *board = new Board0x88();
     board->setStartingPosition();
@@ -18,13 +21,12 @@ int main() {
     //((Board0x88 *)board)->removePiece(0, ((Board0x88 *)board)->pieces[WHITE]);
     //board->print();
 
+    vector<Move> moves = board->genPseudoLegalMoves();
 
-    while(true) {
+    while(moves.size() > 0) {
         uint8_t last_ptype = PAWN;
         board->print();
-        vector<Move> moves = board->genPseudoLegalMoves();
-
-        int i = 0;
+        /*
         for(Move m : moves) {
             if((moveGetPType(m) & MASK_PIECE) != last_ptype) {
                 cout << endl;
@@ -34,13 +36,18 @@ int main() {
             i++;
         }
         cout << endl;
+        */
+        //cout << "Enter Move number: " << endl;
+        //int mnum = 0;
+        //cin >> mnum;
+        //cout << endl;
 
-        cout << "Enter Move number: " << endl;
-        int mnum = 0;
-        cin >> mnum;
-        cout << endl;
+        int mnum = rand() % moves.size();
+
+        cout << "MOVE TAKEN: " << moveToString(moves[mnum]) << endl;
 
         board->makeMove(moves[mnum]);
+        moves = board->genPseudoLegalMoves();
     }
 
 
