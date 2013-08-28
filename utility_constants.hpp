@@ -8,7 +8,7 @@ using namespace std;
 
 
 static string COLORS[2] = {"White", "Black"};
-static char PIECE_SYMBOLS[16] = {'.', 'P', 'N', 'K', '?', 'B', 'R', 'Q', '?',
+static char PIECE_SYMBOLS[16] = {' ', 'P', 'N', 'K', '?', 'B', 'R', 'Q', '?',
                                  'p', 'n', 'k', '?', 'b', 'r', 'q'};
 static char CHESS_COORDS[BOARD_SIZE] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 

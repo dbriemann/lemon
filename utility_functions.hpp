@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <string>
+#include <cstdint>
 using namespace std;
 
 static string intToString(int number) {
@@ -14,5 +15,7 @@ static string intToString(int number) {
 static void ERROR(const string msg) {
     cerr << "ERROR: " << msg << endl;
 }
+
+
 
 #endif // UTILITY_FUNCTIONS_HPP

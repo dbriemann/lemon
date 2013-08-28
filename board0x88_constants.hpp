@@ -5,6 +5,11 @@ typedef uint8_t Index;
 typedef int8_t Offset;
 
 static const uint8_t PAWN_DOUBLE_STEP_DIST = 32;
+static const uint8_t INVALID_INDEX = 0x88;
+static const uint8_t NO_EN_PASSENT = 127;
+static const uint8_t DISABLE_SHORT_CASTLING = 0x1;
+static const uint8_t DISABLE_LONG_CASTLING = 0x2;
+//static const uint8_t DISABLE_BOTH_CASTLING = 0x3;
 
 //castling squares
 static const Index CASTLE_SHORT_ROOK_PATH[2][2] = {{0x07, 0x05},{0x77, 0x75}};

@@ -22,7 +22,8 @@ struct Board {
     virtual void setStartingPosition() = 0;
     virtual void print() const = 0;
     virtual vector<Move> genPseudoLegalMoves() = 0;
-    virtual void makeMove(const Move m) = 0;
+    virtual void makeMove(Move m) = 0;
+    virtual bool undoLastMove() = 0;
 };
 
 #endif // BOARD_HPP

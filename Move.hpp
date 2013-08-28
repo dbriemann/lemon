@@ -11,6 +11,7 @@ using namespace std;
 
 
 typedef uint32_t Move;
+//|4 bits=ptype|7 bits = from|7 bits = to|3 bits = mtype|4 bits = capture|2 bits = disable_castling|5 bits|
 
 static void moveMake(Move &m, uint32_t ptype, uint32_t from, uint32_t to, uint32_t mtype, uint32_t capture) {
     m = 0;
@@ -19,38 +20,50 @@ static void moveMake(Move &m, uint32_t ptype, uint32_t from, uint32_t to, uint32
     to <<= 14; //7 bits
     mtype <<= 11; //3 bits
     capture <<= 7; //4 bits;
-    //still 7 bits unused --> move eval for move ordering?!
+    //disable_castling <<= 5; //2 bit
+    //still 5 bits unused --> move eval for move ordering?!
 
     m = ptype | from | to | mtype | capture;
 }
 
+static void moveSetDisableCastling(Move &m, uint32_t disable_castling) {
+    disable_castling <<= 5;
+    m |= disable_castling;
+}
+
+static uint8_t moveGetDisableCastling(Move m) {
+    m >>= 5;
+    m = m & (0x3);
+    return (uint8_t)m;
+}
+
 static uint8_t moveGetPType(Move m) {
     m >>= 28;
-    return static_cast<uint8_t>(m);
+    return (uint8_t)m;
 }
 
 static uint8_t moveGetFrom(Move m) {
     m >>= 21;
     m = m & (0x7F);
-    return static_cast<uint8_t>(m);
+    return (uint8_t)m;
 }
 
 static uint8_t moveGetTo(Move m) {
     m >>= 14;
     m = m & (0x7F);
-    return static_cast<uint8_t>(m);
+    return (uint8_t)m;
 }
 
 static uint8_t moveGetMType(Move m) {
     m >>= 11;
     m = m & (0x7);
-    return static_cast<uint8_t>(m);
+    return (uint8_t)m;
 }
 
 static uint8_t moveGetCapture(Move m) {
     m >>= 7;
     m = m & (0xF);
-    return static_cast<uint8_t>(m);
+    return (uint8_t)m;
 }
 
 static string moveToString(Move m) {
