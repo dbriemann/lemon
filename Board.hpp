@@ -21,9 +21,10 @@ struct Board {
     virtual void setFENPosition(string fen) = 0;
     virtual void setStartingPosition() = 0;
     virtual void print() const = 0;
-    virtual vector<Move> genPseudoLegalMoves() = 0;
+    virtual void genPseudoLegalMoves(vector<Move> &moves) = 0;
     virtual void makeMove(Move m) = 0;
     virtual bool undoLastMove() = 0;
+    virtual bool makeMoveIfLegal(Move m) = 0;
 };
 
 #endif // BOARD_HPP

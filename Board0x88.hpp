@@ -45,11 +45,13 @@ struct Board0x88 : public Board {
     uint8_t en_passent_square;
     bool castle_short[2];
     bool castle_long[2];
+    Index king_square[2];
     stack<Move> move_history;
     stack<uint8_t> draw_count_history; //TODO -- integrate into Move (64 bit)
 
     //constructors & destructor
     Board0x88();
+    ~Board0x88();
 
     //Board interface methods
     int32_t eval();
@@ -59,9 +61,10 @@ struct Board0x88 : public Board {
     void setFENPosition(string fen);
     void setStartingPosition();
     void print() const;
-    vector<Move> genPseudoLegalMoves();
+    void genPseudoLegalMoves(vector<Move> &moves);
     void makeMove(Move m);
     bool undoLastMove();
+    bool makeMoveIfLegal(Move m);
 
     //non-interface functions
     void genPseudoLegalMovesForPieces(list<Piece> &pieces, vector<Move> &moves);
@@ -70,7 +73,7 @@ struct Board0x88 : public Board {
     void genPseudoLegalKnightMoves(const Index square, vector<Move> &moves);
     void genPseudoLegalSlidingPieceMoves(const Index square, const uint8_t ptype, vector<Move> &moves, const Offset *slider_deltas, const int deltas_size);
     bool isOnBoard(const Index idx) const;
-    void removePiece(const Index piece_square, list<Piece> &pieces);
+    bool removePiece(const Index piece_square, list<Piece> &pieces);
     void addPiece(const uint8_t ptype, const Index piece_square, list<Piece> &pieces);
 };
 
@@ -88,11 +91,22 @@ Board0x88::Board0x88() {
     //halfmove_draw_counter = 0;
     to_move = WHITE;
     en_passent_square = NO_EN_PASSENT;
+    king_square[WHITE] = 0;
+    king_square[BLACK] = 0;
 
     castle_short[WHITE] = true;
     castle_short[BLACK] = true;
     castle_long[WHITE] = true;
     castle_long[BLACK] = true;
+}
+
+Board0x88::~Board0x88() {
+    for(int i = 0; i < 128; i++) {
+        squares[i] = NULL;
+    }
+
+    pieces[WHITE].clear();
+    pieces[BLACK].clear();
 }
 
 bool Board0x88::isOnBoard(const Index idx) const {
@@ -115,13 +129,20 @@ uint8_t Board0x88::get(Index x, Index y) const {
     }
 }
 
+//TODO inefficient
 void Board0x88::set(Index x, Index y, uint8_t value) {
     const Index square = 16*y+x;
     Piece * p = NULL;
     if(value >= WHITE_PAWN && value <= WHITE_QUEEN) {
+        if(value == WHITE_KING) {
+            king_square[WHITE] = square;
+        }
         pieces[WHITE].push_back(Piece(value, square));
         p = &pieces[WHITE].back();
     } else if(value >= BLACK_PAWN && value <= BLACK_QUEEN) {
+        if(value == BLACK_KING) {
+            king_square[BLACK] = square;
+        }
         pieces[BLACK].push_back(Piece(value, square));
         p = &pieces[BLACK].back();
     }
@@ -133,7 +154,7 @@ void Board0x88::addPiece(const uint8_t ptype, const Index piece_square, list<Pie
     squares[piece_square] = &pieces.back();
 }
 
-void Board0x88::removePiece(const Index piece_square, list<Piece> &pieces) {
+bool Board0x88::removePiece(const Index piece_square, list<Piece> &pieces) {
     auto iter = pieces.begin();
 
     while(iter != pieces.end()) {
@@ -143,13 +164,20 @@ void Board0x88::removePiece(const Index piece_square, list<Piece> &pieces) {
         iter++;
     }
 
+    if(iter == pieces.end()) {
+        this->print();
+        ERROR("Board0x88::removePiece(piece_square="+intToString(piece_square)+")");
+        return false;
+    }
+
     pieces.erase(iter);
     squares[piece_square] = NULL;
+    return true;
 }
 
 bool Board0x88::undoLastMove() {
     if(move_history.empty()) {
-        ERROR("Board0x88::undoLastMove(): cannot undo/first move.");
+        //ERROR("Board0x88::undoLastMove(): cannot undo/first move.");
         return false; //first move..
     }
     //take last move from stack
@@ -175,6 +203,7 @@ bool Board0x88::undoLastMove() {
     //move piece backwards
     swap(squares[from], squares[to]);
     squares[to]->square = to;
+
     //if move is a promotion.. revert to pawn
     if(mtype == MOVETYPE_PROMOTION_B || mtype == MOVETYPE_PROMOTION_N || mtype == MOVETYPE_PROMOTION_R || mtype == MOVETYPE_PROMOTION_Q) {
         squares[to]->type = PAWN + COLOR_PIECE_OFFSET[(to_move+1) % 2];
@@ -207,6 +236,10 @@ bool Board0x88::undoLastMove() {
     //change color
     to_move = (to_move + 1) % 2;
 
+    if((ptype & MASK_PIECE) == KING) {
+        king_square[to_move] = to;
+    }
+
     //revert castling rights
     if(disable_castling & DISABLE_SHORT_CASTLING) {
         castle_short[to_move] = true;
@@ -231,6 +264,68 @@ bool Board0x88::undoLastMove() {
     return true;
 }
 
+//executes a move, tests the resulting position for legality, and undos the move if it was illegal
+//legal: return true
+//illegal: return false
+bool Board0x88::makeMoveIfLegal(Move m) {
+    //execute move
+    makeMove(m); //changes color/to_move
+    uint8_t mtype = moveGetMType(m);
+    uint8_t attacked_color = (to_move + 1) % 2;
+
+    //create vector with squares to be checked
+    vector<Index> check_squares;
+    check_squares.push_back(king_square[attacked_color]); //position of king
+    //squares passing by castling
+    if(mtype == MOVETYPE_CASTLE_SHORT) {
+        check_squares.push_back(CASTLE_SHORT_PATH[attacked_color][0]);
+        check_squares.push_back(CASTLE_SHORT_PATH[attacked_color][1]);
+    } else if(mtype == MOVETYPE_CASTLE_LONG) {
+        check_squares.push_back(CASTLE_LONG_PATH[attacked_color][0]);
+        check_squares.push_back(CASTLE_LONG_PATH[attacked_color][1]);
+    }
+
+    uint8_t ptype;
+    uint8_t wander_index;
+
+    //test legality of position
+    for(Piece &p : pieces[to_move]) {
+        ptype = p.type & MASK_PIECE;
+        if(ptype == PAWN) { //pawns must have color info
+            ptype = p.type;
+        }
+
+        //formula: attacked_square - attacking_square + 128 = pieces able to attack
+        for(Index &i : check_squares) {
+            uint8_t atk_index = 128 + i - p.square;
+            //cout << "ATK_INDEX " << intToString(atk_index) << endl;
+            //check if the piece can attack the check square
+            if(ATTACK_ARRAY[atk_index] & PIECE_ATTACK_MASK[ptype]) {
+                //cout << "PTYPE " << intToString(ptype) << endl;
+                //attack is possible..
+                wander_index = p.square + DELTA_ARRAY[atk_index];
+                //now calculate if deltas lead to target square without hinderance
+                while(wander_index != i) {
+                    if(squares[wander_index] != NULL) {
+                        break;
+                    }
+                    wander_index += DELTA_ARRAY[atk_index];
+                }
+                if(wander_index == i) {
+                    ERROR("HIT TARGET -> ILLEGAL MOVE");
+                    ERROR("EVIL SQUARE: " + intToString(p.square));
+                    ERROR(moveToString(m));
+                    undoLastMove();
+                    this->print();
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true; //if we reach this the move was legal
+}
+
 void Board0x88::makeMove(Move m) {
     //TODO get all together (reduce function calls)..
     //extract all move information
@@ -245,8 +340,9 @@ void Board0x88::makeMove(Move m) {
     en_passent_square = NO_EN_PASSENT;
 
     //move piece
+    squares[from]->square = to;
     swap(squares[from], squares[to]);
-    squares[to]->square = to;
+    //squares[to]->square = to;
 
     switch(mtype) {
         case MOVETYPE_CASTLE_LONG:
@@ -296,12 +392,15 @@ void Board0x88::makeMove(Move m) {
     //if a capture has occured.. remove captured piece
     if(capture != EMPTY) {
         squares[capture_square]->square = capture_square;
-        removePiece(capture_square, pieces[(to_move+1) % 2]); //capture
+        if(!removePiece(capture_square, pieces[(to_move+1) % 2])) { //; //capture
+            ERROR(moveToString(m));
+        }
     }
 
     //castling rights
     //if king has moved, disable castling
     if((ptype & MASK_PIECE) == KING) {
+        king_square[to_move] = to;
         if(castle_short[to_move]) {
             moveSetDisableCastling(m, DISABLE_SHORT_CASTLING);
             castle_short[to_move] = false;
@@ -336,16 +435,12 @@ void Board0x88::makeMove(Move m) {
     move_history.push(m);
 }
 
-vector<Move> Board0x88::genPseudoLegalMoves() {
-    vector<Move> moves;
-
+void Board0x88::genPseudoLegalMoves(vector<Move> &moves) {
     if(to_move == WHITE) {
         genPseudoLegalMovesForPieces(pieces[WHITE], moves);
     } else {
         genPseudoLegalMovesForPieces(pieces[BLACK], moves);
     }
-
-    return moves;
 }
 
 void Board0x88::genPseudoLegalMovesForPieces(list<Piece> &pieces, vector<Move> &moves) {
