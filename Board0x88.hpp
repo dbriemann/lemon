@@ -165,8 +165,16 @@ bool Board0x88::removePiece(const Index piece_square, list<Piece> &pieces) {
     }
 
     if(iter == pieces.end()) {
+        /*
         this->print();
-        ERROR("Board0x88::removePiece(piece_square="+intToString(piece_square)+")");
+        ERROR("Board0x88::removePiece(piece_square=" + intToString(piece_square) + ")");
+        for(Piece &p : pieces) {
+            char xx = CHESS_COORDS[p.square % 16];
+            Index yy = (p.square / 16) + 1;
+            cout << PIECE_SYMBOLS[p.type] << ": " << xx << (int)yy << " # ";
+        }
+        cout << endl;
+        */
         return false;
     }
 
@@ -184,15 +192,8 @@ bool Board0x88::undoLastMove() {
     Move m = move_history.top();
     move_history.pop();
 
-    //TODO get all together (reduce function calls)..
-    //extract all move information
-    uint8_t ptype = moveGetPType(m);
     //reverse from and to -> move is undone
-    uint8_t to = moveGetFrom(m);
-    uint8_t from = moveGetTo(m);
-    uint8_t mtype = moveGetMType(m);
-    uint8_t capture = moveGetCapture(m);
-    uint8_t disable_castling = moveGetDisableCastling(m);
+    swap(m.from, m.to);
 
     //unmake every en passent information
     en_passent_square = NO_EN_PASSENT;
@@ -201,34 +202,32 @@ bool Board0x88::undoLastMove() {
     draw_count_history.pop();
 
     //move piece backwards
-    swap(squares[from], squares[to]);
-    squares[to]->square = to;
+    swap(squares[m.from], squares[m.to]);
+    squares[m.to]->square = m.to;
 
     //if move is a promotion.. revert to pawn
-    if(mtype == MOVETYPE_PROMOTION_B || mtype == MOVETYPE_PROMOTION_N || mtype == MOVETYPE_PROMOTION_R || mtype == MOVETYPE_PROMOTION_Q) {
-        squares[to]->type = PAWN + COLOR_PIECE_OFFSET[(to_move+1) % 2];
+    if(m.move_type == MOVETYPE_PROMOTION_B || m.move_type == MOVETYPE_PROMOTION_N
+      || m.move_type == MOVETYPE_PROMOTION_R || m.move_type == MOVETYPE_PROMOTION_Q) {
+        squares[m.to]->type = PAWN + COLOR_PIECE_OFFSET[(to_move+1) % 2];
     }
 
     //if a capture occured, put back piece
-    if(capture != EMPTY) {
-        addPiece(capture, from, pieces[to_move]);
+    if(m.capture_type != EMPTY) {
+        addPiece(m.capture_type, m.from, pieces[to_move]);
     }
 
     //first move?
     if(!move_history.empty()) {
         //else check previous move for en passent
         m = move_history.top(); //don't pop move
-        ptype = moveGetPType(m);
-        from = moveGetFrom(m);
-        to = moveGetTo(m);
 
         //if previous move created en passent opportunity..
-        if((ptype & MASK_PIECE) == PAWN) {
+        if((m.piece_type & MASK_PIECE) == PAWN) {
             //if pawn move was a two step move..
-            uint8_t dist = abs((int)from - (int)to);
+            uint8_t dist = abs((int)m.from - (int)m.to);
 
             if(dist == PAWN_DOUBLE_STEP_DIST) {
-                en_passent_square = from + PAWN_DELTAS[to_move][0];
+                en_passent_square = m.from + PAWN_DELTAS[to_move][0];
             }
         }
     }
@@ -236,23 +235,23 @@ bool Board0x88::undoLastMove() {
     //change color
     to_move = (to_move + 1) % 2;
 
-    if((ptype & MASK_PIECE) == KING) {
-        king_square[to_move] = to;
+    if((m.piece_type & MASK_PIECE) == KING) {
+        king_square[to_move] = m.to;
     }
 
     //revert castling rights
-    if(disable_castling & DISABLE_SHORT_CASTLING) {
+    if(m.castling_mask & DISABLE_SHORT_CASTLING) {
         castle_short[to_move] = true;
     }
-    if(disable_castling & DISABLE_LONG_CASTLING) {
+    if(m.castling_mask & DISABLE_LONG_CASTLING) {
         castle_long[to_move] = true;
     }
 
     //special moves
-    if(mtype == MOVETYPE_CASTLE_LONG) {
+    if(m.move_type == MOVETYPE_CASTLE_LONG) {
         swap(squares[CASTLE_LONG_ROOK_PATH[to_move][1]], squares[CASTLE_LONG_ROOK_PATH[to_move][0]]); //move rook back
         squares[CASTLE_LONG_ROOK_PATH[to_move][0]]->square = CASTLE_LONG_ROOK_PATH[to_move][0];
-    } else if(mtype == MOVETYPE_CASTLE_SHORT) {
+    } else if(m.move_type == MOVETYPE_CASTLE_SHORT) {
         swap(squares[CASTLE_SHORT_ROOK_PATH[to_move][1]], squares[CASTLE_SHORT_ROOK_PATH[to_move][0]]); //move rook back
         squares[CASTLE_SHORT_ROOK_PATH[to_move][0]]->square = CASTLE_SHORT_ROOK_PATH[to_move][0];
     }
@@ -270,17 +269,16 @@ bool Board0x88::undoLastMove() {
 bool Board0x88::makeMoveIfLegal(Move m) {
     //execute move
     makeMove(m); //changes color/to_move
-    uint8_t mtype = moveGetMType(m);
     uint8_t attacked_color = (to_move + 1) % 2;
 
     //create vector with squares to be checked
     vector<Index> check_squares;
     check_squares.push_back(king_square[attacked_color]); //position of king
     //squares passing by castling
-    if(mtype == MOVETYPE_CASTLE_SHORT) {
+    if(m.move_type == MOVETYPE_CASTLE_SHORT) {
         check_squares.push_back(CASTLE_SHORT_PATH[attacked_color][0]);
         check_squares.push_back(CASTLE_SHORT_PATH[attacked_color][1]);
-    } else if(mtype == MOVETYPE_CASTLE_LONG) {
+    } else if(m.move_type == MOVETYPE_CASTLE_LONG) {
         check_squares.push_back(CASTLE_LONG_PATH[attacked_color][0]);
         check_squares.push_back(CASTLE_LONG_PATH[attacked_color][1]);
     }
@@ -314,7 +312,7 @@ bool Board0x88::makeMoveIfLegal(Move m) {
                 if(wander_index == i) {
                     ERROR("HIT TARGET -> ILLEGAL MOVE");
                     ERROR("EVIL SQUARE: " + intToString(p.square));
-                    ERROR(moveToString(m));
+                    ERROR(m.toString());
                     undoLastMove();
                     this->print();
                     return false;
@@ -327,24 +325,36 @@ bool Board0x88::makeMoveIfLegal(Move m) {
 }
 
 void Board0x88::makeMove(Move m) {
-    //TODO get all together (reduce function calls)..
-    //extract all move information
-    uint8_t ptype = moveGetPType(m);
-    uint8_t from = moveGetFrom(m);
-    uint8_t to = moveGetTo(m);
-    uint8_t mtype = moveGetMType(m);
-    uint8_t capture = moveGetCapture(m);
-
+    cout << "MOVE: " << m.toString() << endl;
     //after swap piece is removed at origin, only used if capture occurs, en passent overwrites this
-    Index capture_square = from;
+    Index capture_square = m.from;
     en_passent_square = NO_EN_PASSENT;
 
     //move piece
-    squares[from]->square = to;
-    swap(squares[from], squares[to]);
-    //squares[to]->square = to;
+    //squares[from]->square = to;
+    if(squares[m.from] == NULL) {
+        ERROR("MUHHHH-> NULL");
+        this->print();
+    }
+    swap(squares[m.from], squares[m.to]);
+    if(squares[m.to] == NULL) {
+        ERROR("MUHHHH2-> NULL");
+        this->print();
 
-    switch(mtype) {
+        for(Piece &p : pieces[to_move]) {
+            char xx = CHESS_COORDS[p.square % 16];
+            Index yy = (p.square / 16) + 1;
+            cout << PIECE_SYMBOLS[p.type] << xx << (int)yy << ", ";
+        }
+        cout << endl;
+        cout << "MOVE: " << m.toString() << endl;
+        cout << "LAST MOVE: " << move_history.top().toString() << endl;
+    }
+
+
+    squares[m.to]->square = m.to;
+
+    switch(m.move_type) {
         case MOVETYPE_CASTLE_LONG:
             swap(squares[CASTLE_LONG_ROOK_PATH[to_move][0]], squares[CASTLE_LONG_ROOK_PATH[to_move][1]]); //move rook
             squares[CASTLE_LONG_ROOK_PATH[to_move][1]]->square = CASTLE_LONG_ROOK_PATH[to_move][1];
@@ -354,35 +364,35 @@ void Board0x88::makeMove(Move m) {
             squares[CASTLE_SHORT_ROOK_PATH[to_move][1]]->square = CASTLE_SHORT_ROOK_PATH[to_move][1];
             break;
         case MOVETYPE_EN_PASSENT:
-            capture_square = to - PAWN_DELTAS[to_move][0];
+            capture_square = m.to - PAWN_DELTAS[to_move][0];
             break;
         case MOVETYPE_ORDINARY:
             //if piece is a pawn of any color
-            if((ptype & MASK_PIECE) == PAWN) {
+            if((m.piece_type & MASK_PIECE) == PAWN) {
                 //if pawn move was a two step move..
-                uint8_t dist = abs((int)from - (int)to);
+                uint8_t dist = abs((int)m.from - (int)m.to);
                 if(dist == PAWN_DOUBLE_STEP_DIST) {
-                    en_passent_square = from + PAWN_DELTAS[to_move][0];
+                    en_passent_square = m.from + PAWN_DELTAS[to_move][0];
                 }
             }
             break;
         case MOVETYPE_PROMOTION_B:
-            squares[to]->type = BISHOP + COLOR_PIECE_OFFSET[to_move];
+            squares[m.to]->type = BISHOP + COLOR_PIECE_OFFSET[to_move];
             break;
         case MOVETYPE_PROMOTION_N:
-            squares[to]->type = KNIGHT + COLOR_PIECE_OFFSET[to_move];
+            squares[m.to]->type = KNIGHT + COLOR_PIECE_OFFSET[to_move];
             break;
         case MOVETYPE_PROMOTION_Q:
-            squares[to]->type = QUEEN + COLOR_PIECE_OFFSET[to_move];
+            squares[m.to]->type = QUEEN + COLOR_PIECE_OFFSET[to_move];
             break;
         case MOVETYPE_PROMOTION_R:
-            squares[to]->type = ROOK + COLOR_PIECE_OFFSET[to_move];
+            squares[m.to]->type = ROOK + COLOR_PIECE_OFFSET[to_move];
             break;
         default:
             break;
     }
 
-    if(capture != EMPTY || ((ptype & MASK_PIECE) == PAWN)) {
+    if(m.capture_type != EMPTY || ((m.piece_type & MASK_PIECE) == PAWN)) {
         //capture or pawn move -> reset 50 moves draw counter
         draw_count_history.push(0);
     } else {
@@ -390,38 +400,41 @@ void Board0x88::makeMove(Move m) {
     }
 
     //if a capture has occured.. remove captured piece
-    if(capture != EMPTY) {
+    if(m.capture_type != EMPTY) {
         squares[capture_square]->square = capture_square;
         if(!removePiece(capture_square, pieces[(to_move+1) % 2])) { //; //capture
-            ERROR(moveToString(m));
+           // ERROR(moveToString(m));
         }
     }
 
     //castling rights
     //if king has moved, disable castling
-    if((ptype & MASK_PIECE) == KING) {
-        king_square[to_move] = to;
+    if((m.piece_type & MASK_PIECE) == KING) {
+        king_square[to_move] = m.to;
         if(castle_short[to_move]) {
-            moveSetDisableCastling(m, DISABLE_SHORT_CASTLING);
+            m.castling_mask |= DISABLE_SHORT_CASTLING;
             castle_short[to_move] = false;
         }
         if(castle_long[to_move]) {
-            moveSetDisableCastling(m, DISABLE_LONG_CASTLING);
+            m.castling_mask |= DISABLE_LONG_CASTLING;
             castle_long[to_move] = false;
         }
     }
     //check if rook has moved
-    if(from == CASTLE_SHORT_ROOK_PATH[to_move][0]) { //short
+    if(m.from == CASTLE_SHORT_ROOK_PATH[to_move][0]) { //short
         if(castle_short[to_move]) {
-            moveSetDisableCastling(m, DISABLE_SHORT_CASTLING);
+            m.castling_mask |= DISABLE_SHORT_CASTLING;
             castle_short[to_move] = false;
         }
-    } else if(from == CASTLE_LONG_ROOK_PATH[to_move][0]) { //long
+    } else if(m.from == CASTLE_LONG_ROOK_PATH[to_move][0]) { //long
         if(castle_long[to_move]) {
-            moveSetDisableCastling(m, DISABLE_LONG_CASTLING);
+            m.castling_mask |= DISABLE_LONG_CASTLING;
             castle_long[to_move] = false;
         }
     }
+
+    //push move onto history stack
+    move_history.push(m);
 
     //only count complete moves.. no half moves
     if(to_move == BLACK) {
@@ -430,22 +443,26 @@ void Board0x88::makeMove(Move m) {
 
     //change color
     to_move = (to_move + 1) % 2;
-
-    //push move onto history stack
-    move_history.push(m);
 }
 
 void Board0x88::genPseudoLegalMoves(vector<Move> &moves) {
     if(to_move == WHITE) {
+        cout << "GEN WHITE MOVES" << endl;
         genPseudoLegalMovesForPieces(pieces[WHITE], moves);
     } else {
+        cout << "GEN BLACK MOVES" << endl;
         genPseudoLegalMovesForPieces(pieces[BLACK], moves);
     }
 }
 
 void Board0x88::genPseudoLegalMovesForPieces(list<Piece> &pieces, vector<Move> &moves) {
     //for every piece
+    cout << "PIECES: ";
     for(Piece &p : pieces) {
+        char xx = CHESS_COORDS[p.square % 16];
+        Index yy = (p.square / 16) + 1;
+        cout << PIECE_SYMBOLS[p.type] << xx << (int)yy << ", ";
+
         uint8_t raw_type = p.type & MASK_RAW_PIECE_TYPE;
 
         //test piece
@@ -470,11 +487,13 @@ void Board0x88::genPseudoLegalMovesForPieces(list<Piece> &pieces, vector<Move> &
                 break;
         }
     }
+
+    cout << endl;
 }
 
 void Board0x88::genPseudoLegalKnightMoves(Index square, vector<Move> &moves) {
     Index target;
-    Move m = 0;
+    Move m;
 
     for(const Index &d : KNIGHT_DELTAS) {
         target = square + d;
@@ -483,11 +502,11 @@ void Board0x88::genPseudoLegalKnightMoves(Index square, vector<Move> &moves) {
         if(isOnBoard(target)) {
             if(squares[target] == NULL) {
                 //move
-                moveMake(m, KNIGHT + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
+                m = Move(KNIGHT + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
                 moves.push_back(m);
             } else if(((squares[target]->type & MASK_COLOR) >> 3) != to_move) {
                 //capture
-                moveMake(m, KNIGHT + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
+                m = Move(KNIGHT + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
                 moves.push_back(m);
             }
         }
@@ -497,7 +516,7 @@ void Board0x88::genPseudoLegalKnightMoves(Index square, vector<Move> &moves) {
 //TODO -- gen pseudo sliding piece moves..
 void Board0x88::genPseudoLegalSlidingPieceMoves(Index square, const uint8_t ptype, vector<Move> &moves, const Offset *slider_deltas, const int deltas_size) {
     Index target;
-    Move m = 0;
+    Move m;
 
     for(int i = 0; i < deltas_size; i++) {
         const Index d = slider_deltas[i];
@@ -506,12 +525,12 @@ void Board0x88::genPseudoLegalSlidingPieceMoves(Index square, const uint8_t ptyp
         while(isOnBoard(target)) {
             if(squares[target] == NULL) {
                 //move
-                moveMake(m, ptype + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
+                m = Move(ptype + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
                 moves.push_back(m);
                 //slide more
             } else if(((squares[target]->type & MASK_COLOR) >> 3) != to_move) {
                 //capture
-                moveMake(m, ptype + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
+                m = Move(ptype + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
                 moves.push_back(m);
                 break; //finish slide
             } else {
@@ -524,24 +543,24 @@ void Board0x88::genPseudoLegalSlidingPieceMoves(Index square, const uint8_t ptyp
 
 void Board0x88::genPseudoLegalPawnMoves(Index square, vector<Move> &moves) {
     Index target;
-    Move m = 0;
+    Move m;
 
     //one step forward
     target = square + PAWN_DELTAS[to_move][0];
     if(squares[target] == NULL) { //while? //TODO
         //promotion?
         if(target >= PAWN_PROMOTION_RANGE[to_move][0] && target <= PAWN_PROMOTION_RANGE[to_move][1]) {
-            moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_Q, EMPTY);
+            m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_Q, EMPTY);
             moves.push_back(m);
-            moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_R, EMPTY);
+            m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_R, EMPTY);
             moves.push_back(m);
-            moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_B, EMPTY);
+            m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_B, EMPTY);
             moves.push_back(m);
-            moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_N, EMPTY);
+            m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_N, EMPTY);
             moves.push_back(m);
             //break?//TODO
         } else { //normal advance
-            moveMake(m, WHITE_PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
+            m = Move(WHITE_PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
             moves.push_back(m);
         }
 
@@ -550,7 +569,7 @@ void Board0x88::genPseudoLegalPawnMoves(Index square, vector<Move> &moves) {
             //pawn has not moved.. double jump is allowed
             target += PAWN_DELTAS[to_move][0]; //add one step
             if(squares[target] == NULL) {
-                moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
+                m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
                 moves.push_back(m);
             }
         }
@@ -564,22 +583,22 @@ void Board0x88::genPseudoLegalPawnMoves(Index square, vector<Move> &moves) {
             if(squares[target] != NULL && (((squares[target]->type & MASK_COLOR) >> 3) != to_move)) {
                 //promotion?
                 if(target >= PAWN_PROMOTION_RANGE[to_move][0] && target <= PAWN_PROMOTION_RANGE[to_move][1]) {
-                    moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_Q, squares[target]->type);
+                    m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_Q, squares[target]->type);
                     moves.push_back(m);
-                    moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_R, squares[target]->type);
+                    m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_R, squares[target]->type);
                     moves.push_back(m);
-                    moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_B, squares[target]->type);
+                    m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_B, squares[target]->type);
                     moves.push_back(m);
-                    moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_N, squares[target]->type);
+                    m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_PROMOTION_N, squares[target]->type);
                     moves.push_back(m);
                     continue; //nothing else can happen
                 } else {
-                    moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
+                    m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
                     moves.push_back(m);
                 }
             } else if(squares[target] == NULL && target == en_passent_square) {
                 //en passent
-                moveMake(m, PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_EN_PASSENT, squares[target+PAWN_DELTAS[(to_move+1) % 2][0]]->type);
+                m = Move(PAWN + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_EN_PASSENT, squares[target+PAWN_DELTAS[(to_move+1) % 2][0]]->type);
                 moves.push_back(m);
             }
         }
@@ -588,7 +607,7 @@ void Board0x88::genPseudoLegalPawnMoves(Index square, vector<Move> &moves) {
 
 void Board0x88::genPseudoLegalKingMoves(Index square, vector<Move> &moves) {
     Index target;
-    Move m = 0;
+    Move m;
 
     //regular king moves
     for(const Index &d : KING_DELTAS) {
@@ -597,12 +616,12 @@ void Board0x88::genPseudoLegalKingMoves(Index square, vector<Move> &moves) {
         //if target is not occupied by a piece of the same color
         if(isOnBoard(target)) {
             if(squares[target] == NULL) {
-                //move                
-                moveMake(m, KING + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
+                //move
+                m = Move(KING + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, EMPTY);
                 moves.push_back(m);
             } else if(((squares[target]->type & MASK_COLOR) >> 3) != to_move) {
                 //capture
-                moveMake(m, KING + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
+                m = Move(KING + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_ORDINARY, squares[target]->type);
                 moves.push_back(m);
             }
         }
@@ -613,26 +632,26 @@ void Board0x88::genPseudoLegalKingMoves(Index square, vector<Move> &moves) {
         //castling kingside
         if(castle_short[WHITE] && squares[CASTLE_SHORT_PATH[WHITE][0]] == NULL && squares[CASTLE_SHORT_PATH[WHITE][1]] == NULL) {
             target = CASTLE_SHORT_SQUARE[WHITE];
-            moveMake(m, WHITE_KING, square, target, MOVETYPE_CASTLE_SHORT, EMPTY);
+            m = Move(WHITE_KING, square, target, MOVETYPE_CASTLE_SHORT, EMPTY);
             moves.push_back(m);
         }
         //castling queenside
         if(castle_long[WHITE] && squares[CASTLE_LONG_PATH[WHITE][0]] == NULL && squares[CASTLE_LONG_PATH[WHITE][1]] == NULL) {
             target = CASTLE_LONG_SQUARE[WHITE];
-            moveMake(m, WHITE_KING, square, target, MOVETYPE_CASTLE_LONG, EMPTY);
+            m = Move(WHITE_KING, square, target, MOVETYPE_CASTLE_LONG, EMPTY);
             moves.push_back(m);
         }
     } else { //black
         //castling kingside
         if(castle_short[BLACK] && squares[CASTLE_SHORT_PATH[BLACK][0]] == NULL && squares[CASTLE_SHORT_PATH[BLACK][1]] == NULL) {
             target = CASTLE_SHORT_SQUARE[BLACK];
-            moveMake(m, BLACK_KING, square, target, MOVETYPE_CASTLE_SHORT, EMPTY);
+            m = Move(BLACK_KING, square, target, MOVETYPE_CASTLE_SHORT, EMPTY);
             moves.push_back(m);
         }
         //castling queenside
         if(castle_long[WHITE] && squares[CASTLE_LONG_PATH[BLACK][0]] == NULL && squares[CASTLE_LONG_PATH[BLACK][1]] == NULL) {
             target = CASTLE_LONG_SQUARE[BLACK];
-            moveMake(m, BLACK_KING, square, target, MOVETYPE_CASTLE_LONG, EMPTY);
+            m = Move(BLACK_KING, square, target, MOVETYPE_CASTLE_LONG, EMPTY);
             moves.push_back(m);
         }
     }

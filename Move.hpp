@@ -10,79 +10,49 @@ using namespace std;
 #include "utility_functions.hpp"
 
 
-typedef uint32_t Move;
-//|4 bits=ptype|7 bits = from|7 bits = to|3 bits = mtype|4 bits = capture|2 bits = disable_castling|5 bits|
+struct Move {
+    uint8_t piece_type;
+    uint8_t from;
+    uint8_t to;
+    uint8_t move_type;
+    uint8_t capture_type;
+    uint8_t castling_mask;
 
-static void moveMake(Move &m, uint32_t ptype, uint32_t from, uint32_t to, uint32_t mtype, uint32_t capture) {
-    m = 0;
-    ptype <<= 28; //4 bits
-    from <<= 21; //7 bits
-    to <<= 14; //7 bits
-    mtype <<= 11; //3 bits
-    capture <<= 7; //4 bits;
-    //disable_castling <<= 5; //2 bit
-    //still 5 bits unused --> move eval for move ordering?!
+    Move();
+    Move(uint8_t ptype, uint8_t from, uint8_t to, uint8_t mtype, uint8_t ctype);
 
-    m = ptype | from | to | mtype | capture;
+    string toString();
+};
+
+Move::Move() {
+    piece_type = EMPTY;
+    from = 255; //may crash
+    to = 255; //may crash
+    move_type = MOVETYPE_ORDINARY;
+    capture_type = EMPTY;
+    castling_mask = 0x0;
 }
 
-static void moveSetDisableCastling(Move &m, uint32_t disable_castling) {
-    disable_castling <<= 5;
-    m |= disable_castling;
+Move::Move(uint8_t ptype, uint8_t from, uint8_t to, uint8_t mtype, uint8_t ctype) {
+    piece_type = ptype;
+    this->from = from;
+    this->to = to;
+    move_type = mtype;
+    capture_type = ctype;
+    castling_mask = 0x0;
 }
 
-static uint8_t moveGetDisableCastling(Move m) {
-    m >>= 5;
-    m = m & (0x3);
-    return (uint8_t)m;
-}
-
-static uint8_t moveGetPType(Move m) {
-    m >>= 28;
-    return (uint8_t)m;
-}
-
-static uint8_t moveGetFrom(Move m) {
-    m >>= 21;
-    m = m & (0x7F);
-    return (uint8_t)m;
-}
-
-static uint8_t moveGetTo(Move m) {
-    m >>= 14;
-    m = m & (0x7F);
-    return (uint8_t)m;
-}
-
-static uint8_t moveGetMType(Move m) {
-    m >>= 11;
-    m = m & (0x7);
-    return (uint8_t)m;
-}
-
-static uint8_t moveGetCapture(Move m) {
-    m >>= 7;
-    m = m & (0xF);
-    return (uint8_t)m;
-}
-
-static string moveToString(Move m) {
-    uint8_t ptype = moveGetPType(m);
-    uint8_t from = moveGetFrom(m);
-    uint8_t to = moveGetTo(m);
-    uint8_t mtype = moveGetMType(m);
-    uint8_t capture = moveGetCapture(m);
-
+string Move::toString() {
     string ret;
 
-    if(mtype == MOVETYPE_CASTLE_SHORT) {
+    if(move_type == MOVETYPE_CASTLE_SHORT) {
         ret = "0-0";
-    } else if(mtype == MOVETYPE_CASTLE_LONG) {
+    } else if(move_type == MOVETYPE_CASTLE_LONG) {
         ret = "0-0-0";
     } else {
         //piece if not pawn
-        if(ptype != BLACK_PAWN && ptype != WHITE_PAWN) {
-            ret += PIECE_SYMBOLS[ptype & MASK_PIECE];
+        if(piece_type != BLACK_PAWN && piece_type != WHITE_PAWN) {
+            ret += PIECE_SYMBOLS[piece_type & MASK_PIECE];
             //ret += intToString(ptype);
         }
         //from
@@ -91,11 +61,11 @@ static string moveToString(Move m) {
         ret += xx;
         ret += intToString(yy);
         //x if capture
-        if(capture != EMPTY) {
+        if(capture_type != EMPTY) {
             ret+="x";
             //target piece if not pawn
-            if(capture != WHITE_PAWN && capture != BLACK_PAWN) {
-                ret += PIECE_SYMBOLS[capture & MASK_PIECE];
+            if(capture_type != WHITE_PAWN && capture_type != BLACK_PAWN) {
+                ret += PIECE_SYMBOLS[capture_type & MASK_PIECE];
             }
         }
         //to
@@ -104,21 +74,20 @@ static string moveToString(Move m) {
         ret += xx;
         ret += intToString(yy);
 
-        if(mtype == MOVETYPE_EN_PASSENT) {
+        if(move_type == MOVETYPE_EN_PASSENT) {
             ret+="ep";
-        } else if(mtype == MOVETYPE_PROMOTION_Q) {
+        } else if(move_type == MOVETYPE_PROMOTION_Q) {
             ret+="=Q";
-        } else if(mtype == MOVETYPE_PROMOTION_R) {
+        } else if(move_type == MOVETYPE_PROMOTION_R) {
             ret+="=R";
-        } else if(mtype == MOVETYPE_PROMOTION_B) {
+        } else if(move_type == MOVETYPE_PROMOTION_B) {
             ret+="=B";
-        } else if(mtype == MOVETYPE_PROMOTION_N) {
+        } else if(move_type == MOVETYPE_PROMOTION_N) {
             ret+="=N";
         }
     }
 
     return ret;
 }
-
 
 #endif // MOVE_HPP
