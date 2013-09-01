@@ -164,8 +164,7 @@ bool Board0x88::removePiece(const Index piece_square, list<Piece> &pieces) {
         iter++;
     }
 
-    if(iter == pieces.end()) {
-        /*
+    if(iter == pieces.end()) {        
         this->print();
         ERROR("Board0x88::removePiece(piece_square=" + intToString(piece_square) + ")");
         for(Piece &p : pieces) {
@@ -174,7 +173,6 @@ bool Board0x88::removePiece(const Index piece_square, list<Piece> &pieces) {
             cout << PIECE_SYMBOLS[p.type] << ": " << xx << (int)yy << " # ";
         }
         cout << endl;
-        */
         return false;
     }
 
@@ -189,11 +187,11 @@ bool Board0x88::undoLastMove() {
         return false; //first move..
     }
     //take last move from stack
-    Move m = move_history.top();
+    Move last_move = move_history.top();
     move_history.pop();
 
     //reverse from and to -> move is undone
-    swap(m.from, m.to);
+    swap(last_move.from, last_move.to);
 
     //unmake every en passent information
     en_passent_square = NO_EN_PASSENT;
@@ -201,33 +199,45 @@ bool Board0x88::undoLastMove() {
     //unmake halfmove draw counter
     draw_count_history.pop();
 
+    /*
+    if(squares[last_move.from] == NULL) {
+        cout << last_move.toString() << endl;
+        print();
+    }*/
     //move piece backwards
-    swap(squares[m.from], squares[m.to]);
-    squares[m.to]->square = m.to;
+    swap(squares[last_move.from], squares[last_move.to]);
+    squares[last_move.to]->square = last_move.to;
+
 
     //if move is a promotion.. revert to pawn
-    if(m.move_type == MOVETYPE_PROMOTION_B || m.move_type == MOVETYPE_PROMOTION_N
-      || m.move_type == MOVETYPE_PROMOTION_R || m.move_type == MOVETYPE_PROMOTION_Q) {
-        squares[m.to]->type = PAWN + COLOR_PIECE_OFFSET[(to_move+1) % 2];
+    if(last_move.move_type == MOVETYPE_PROMOTION_B || last_move.move_type == MOVETYPE_PROMOTION_N
+      || last_move.move_type == MOVETYPE_PROMOTION_R || last_move.move_type == MOVETYPE_PROMOTION_Q) {
+        squares[last_move.to]->type = PAWN + COLOR_PIECE_OFFSET[(to_move+1) % 2];
     }
 
     //if a capture occured, put back piece
-    if(m.capture_type != EMPTY) {
-        addPiece(m.capture_type, m.from, pieces[to_move]);
+    if(last_move.capture_type != EMPTY) {
+        if(last_move.move_type == MOVETYPE_EN_PASSENT) {
+            //en passent capture
+            addPiece(last_move.capture_type, last_move.from + PAWN_DELTAS[to_move][0], pieces[to_move]);
+        } else {
+            //default capture
+            addPiece(last_move.capture_type, last_move.from, pieces[to_move]);
+        }
     }
 
     //first move?
     if(!move_history.empty()) {
         //else check previous move for en passent
-        m = move_history.top(); //don't pop move
+        Move llmove = move_history.top(); //don't pop move
 
         //if previous move created en passent opportunity..
-        if((m.piece_type & MASK_PIECE) == PAWN) {
+        if((llmove.piece_type & MASK_PIECE) == PAWN) {
             //if pawn move was a two step move..
-            uint8_t dist = abs((int)m.from - (int)m.to);
+            uint8_t dist = abs((int)llmove.from - (int)llmove.to);
 
             if(dist == PAWN_DOUBLE_STEP_DIST) {
-                en_passent_square = m.from + PAWN_DELTAS[to_move][0];
+                en_passent_square = llmove.from + PAWN_DELTAS[to_move][0];
             }
         }
     }
@@ -235,23 +245,23 @@ bool Board0x88::undoLastMove() {
     //change color
     to_move = (to_move + 1) % 2;
 
-    if((m.piece_type & MASK_PIECE) == KING) {
-        king_square[to_move] = m.to;
+    if((last_move.piece_type & MASK_PIECE) == KING) {
+        king_square[to_move] = last_move.to;
     }
 
     //revert castling rights
-    if(m.castling_mask & DISABLE_SHORT_CASTLING) {
+    if(last_move.castling_mask & DISABLE_SHORT_CASTLING) {
         castle_short[to_move] = true;
     }
-    if(m.castling_mask & DISABLE_LONG_CASTLING) {
+    if(last_move.castling_mask & DISABLE_LONG_CASTLING) {
         castle_long[to_move] = true;
     }
 
     //special moves
-    if(m.move_type == MOVETYPE_CASTLE_LONG) {
+    if(last_move.move_type == MOVETYPE_CASTLE_LONG) {
         swap(squares[CASTLE_LONG_ROOK_PATH[to_move][1]], squares[CASTLE_LONG_ROOK_PATH[to_move][0]]); //move rook back
         squares[CASTLE_LONG_ROOK_PATH[to_move][0]]->square = CASTLE_LONG_ROOK_PATH[to_move][0];
-    } else if(m.move_type == MOVETYPE_CASTLE_SHORT) {
+    } else if(last_move.move_type == MOVETYPE_CASTLE_SHORT) {
         swap(squares[CASTLE_SHORT_ROOK_PATH[to_move][1]], squares[CASTLE_SHORT_ROOK_PATH[to_move][0]]); //move rook back
         squares[CASTLE_SHORT_ROOK_PATH[to_move][0]]->square = CASTLE_SHORT_ROOK_PATH[to_move][0];
     }
@@ -296,10 +306,8 @@ bool Board0x88::makeMoveIfLegal(Move m) {
         //formula: attacked_square - attacking_square + 128 = pieces able to attack
         for(Index &i : check_squares) {
             uint8_t atk_index = 128 + i - p.square;
-            //cout << "ATK_INDEX " << intToString(atk_index) << endl;
             //check if the piece can attack the check square
             if(ATTACK_ARRAY[atk_index] & PIECE_ATTACK_MASK[ptype]) {
-                //cout << "PTYPE " << intToString(ptype) << endl;
                 //attack is possible..
                 wander_index = p.square + DELTA_ARRAY[atk_index];
                 //now calculate if deltas lead to target square without hinderance
@@ -310,11 +318,15 @@ bool Board0x88::makeMoveIfLegal(Move m) {
                     wander_index += DELTA_ARRAY[atk_index];
                 }
                 if(wander_index == i) {
+                    /*
+                    ERROR("KING SQUARE " + intToString(king_square[attacked_color]));
+                    ERROR("ATTACKED SQUARE " + intToString(i));
                     ERROR("HIT TARGET -> ILLEGAL MOVE");
                     ERROR("EVIL SQUARE: " + intToString(p.square));
                     ERROR(m.toString());
-                    undoLastMove();
                     this->print();
+                    */
+                    undoLastMove();
                     return false;
                 }
             }
@@ -325,38 +337,32 @@ bool Board0x88::makeMoveIfLegal(Move m) {
 }
 
 void Board0x88::makeMove(Move m) {
-    cout << "MOVE: " << m.toString() << endl;
     //after swap piece is removed at origin, only used if capture occurs, en passent overwrites this
     Index capture_square = m.from;
     en_passent_square = NO_EN_PASSENT;
 
     //move piece
     //squares[from]->square = to;
-    if(squares[m.from] == NULL) {
-        ERROR("MUHHHH-> NULL");
-        this->print();
-    }
     swap(squares[m.from], squares[m.to]);
-    if(squares[m.to] == NULL) {
-        ERROR("MUHHHH2-> NULL");
-        this->print();
-
-        for(Piece &p : pieces[to_move]) {
-            char xx = CHESS_COORDS[p.square % 16];
-            Index yy = (p.square / 16) + 1;
-            cout << PIECE_SYMBOLS[p.type] << xx << (int)yy << ", ";
-        }
-        cout << endl;
-        cout << "MOVE: " << m.toString() << endl;
-        cout << "LAST MOVE: " << move_history.top().toString() << endl;
-    }
-
-
     squares[m.to]->square = m.to;
 
     switch(m.move_type) {
         case MOVETYPE_CASTLE_LONG:
-            swap(squares[CASTLE_LONG_ROOK_PATH[to_move][0]], squares[CASTLE_LONG_ROOK_PATH[to_move][1]]); //move rook
+            /*
+            if(squares[CASTLE_LONG_ROOK_PATH[to_move][0]] == NULL) {
+                swap(squares[m.from], squares[m.to]);
+                squares[m.from]->square = m.from;
+                cout << "COLOR: " << COLORS[to_move] << " MOVE: " << m.toString() << endl;
+                cout << "MOVE: " << m.toString() << endl;
+                print();
+                while(!move_history.empty()) {
+                    cout << "MOVE: " << move_history.top().toString() << endl;
+                    cout << "CASTLING MASK: " << intToString(move_history.top().castling_mask) << endl;
+                    undoLastMove();
+                    print();
+                }
+            }*/
+            swap(squares[CASTLE_LONG_ROOK_PATH[to_move][0]], squares[CASTLE_LONG_ROOK_PATH[to_move][1]]); //move rook            
             squares[CASTLE_LONG_ROOK_PATH[to_move][1]]->square = CASTLE_LONG_ROOK_PATH[to_move][1];
             break;
         case MOVETYPE_CASTLE_SHORT:
@@ -421,15 +427,19 @@ void Board0x88::makeMove(Move m) {
         }
     }
     //check if rook has moved
-    if(m.from == CASTLE_SHORT_ROOK_PATH[to_move][0]) { //short
-        if(castle_short[to_move]) {
-            m.castling_mask |= DISABLE_SHORT_CASTLING;
-            castle_short[to_move] = false;
-        }
-    } else if(m.from == CASTLE_LONG_ROOK_PATH[to_move][0]) { //long
-        if(castle_long[to_move]) {
-            m.castling_mask |= DISABLE_LONG_CASTLING;
-            castle_long[to_move] = false;
+    if((m.piece_type & MASK_PIECE) == ROOK) {
+        if(m.from == CASTLE_SHORT_ROOK_PATH[to_move][0]) { //short
+            if(castle_short[to_move]) {
+                m.castling_mask |= DISABLE_SHORT_CASTLING;
+                castle_short[to_move] = false;
+            }
+        } else if(m.from == CASTLE_LONG_ROOK_PATH[to_move][0]) { //long
+            //cout << "LONG ROOK MOVED" << endl;
+            if(castle_long[to_move]) {
+                //cout << "DISABLE LONG CASTLING" << endl;
+                m.castling_mask |= DISABLE_LONG_CASTLING;
+                castle_long[to_move] = false;
+            }
         }
     }
 
@@ -447,21 +457,15 @@ void Board0x88::makeMove(Move m) {
 
 void Board0x88::genPseudoLegalMoves(vector<Move> &moves) {
     if(to_move == WHITE) {
-        cout << "GEN WHITE MOVES" << endl;
         genPseudoLegalMovesForPieces(pieces[WHITE], moves);
     } else {
-        cout << "GEN BLACK MOVES" << endl;
         genPseudoLegalMovesForPieces(pieces[BLACK], moves);
     }
 }
 
 void Board0x88::genPseudoLegalMovesForPieces(list<Piece> &pieces, vector<Move> &moves) {
     //for every piece
-    cout << "PIECES: ";
     for(Piece &p : pieces) {
-        char xx = CHESS_COORDS[p.square % 16];
-        Index yy = (p.square / 16) + 1;
-        cout << PIECE_SYMBOLS[p.type] << xx << (int)yy << ", ";
 
         uint8_t raw_type = p.type & MASK_RAW_PIECE_TYPE;
 
@@ -487,8 +491,6 @@ void Board0x88::genPseudoLegalMovesForPieces(list<Piece> &pieces, vector<Move> &
                 break;
         }
     }
-
-    cout << endl;
 }
 
 void Board0x88::genPseudoLegalKnightMoves(Index square, vector<Move> &moves) {
@@ -649,7 +651,7 @@ void Board0x88::genPseudoLegalKingMoves(Index square, vector<Move> &moves) {
             moves.push_back(m);
         }
         //castling queenside
-        if(castle_long[WHITE] && squares[CASTLE_LONG_PATH[BLACK][0]] == NULL && squares[CASTLE_LONG_PATH[BLACK][1]] == NULL) {
+        if(castle_long[BLACK] && squares[CASTLE_LONG_PATH[BLACK][0]] == NULL && squares[CASTLE_LONG_PATH[BLACK][1]] == NULL) {
             target = CASTLE_LONG_SQUARE[BLACK];
             m = Move(BLACK_KING, square, target, MOVETYPE_CASTLE_LONG, EMPTY);
             moves.push_back(m);
@@ -857,6 +859,9 @@ void Board0x88::setFENPosition(string fen) {
                     castle_short[BLACK] = true; break;
                 case 'q':
                     castle_long[BLACK] = true; break;
+                case '-':
+                    castle_long[BLACK] = castle_long[WHITE] = castle_short[BLACK] = castle_short[WHITE] = false;
+                    break; //disable all
                 default:
                     string err = "FEN CODE CORRUPTED (CASTLING RIGHTS ->";
                     err += c; err += ")";

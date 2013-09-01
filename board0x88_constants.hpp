@@ -15,7 +15,7 @@ static const uint8_t DISABLE_LONG_CASTLING = 0x2;
 static const Index CASTLE_SHORT_ROOK_PATH[2][2] = {{0x07, 0x05},{0x77, 0x75}};
 static const Index CASTLE_SHORT_PATH[2][2] = {{0x05, 0x06}, {0x75, 0x76}};
 static const Index CASTLE_SHORT_SQUARE[2] = {0x06, 0x76};
-static const Index CASTLE_LONG_ROOK_PATH[2][2] = {{0x07, 0x05},{0x77, 0x75}};
+static const Index CASTLE_LONG_ROOK_PATH[2][2] = {{0x00, 0x03},{0x70, 0x73}};
 static const Index CASTLE_LONG_PATH[2][2] = {{0x03, 0x02}, {0x73, 0x72}};
 static const Index CASTLE_LONG_SQUARE[2] = {0x02, 0x72};
 
