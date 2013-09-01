@@ -43,7 +43,6 @@ static void perft(Board0x88 &board, Move *last_move, int depth, PerftData &pdata
                 board.undoLastMove();
             }
         }
-
     }
 }
 
@@ -54,7 +53,7 @@ static void runTests(vector<PerftData> &test_set) {
 
     cout << "************ PERFT ************" << endl;
     cout << "### FEN: " << test_set[0].fen << " ###" << endl;
-    cout << setfill('-') << "|" << setw(114) << "|" << endl;
+    cout << setfill('-') << "|" << setw(125) << "|" << endl;
     cout << "|" << setw(5) << "Depth"
          << "|" << setw(15) << "Nodes[?]"
          << "|" << setw(13) << "Captures[?]"
@@ -64,8 +63,9 @@ static void runTests(vector<PerftData> &test_set) {
          << "|" << setw(11) << "Checks[?]"
          << "|" << setw(14) << "Checkmates[?]"
          << "|" << setw(10) << "Time"
+         << "|" << setw(10) << "Node/sec"
          << "|" << endl;
-    cout << "|" << setfill('-') << setw(114) << "|" << endl;
+    cout << "|" << setfill('-') << setw(125) << "|" << endl;
 
 
     for(auto &pd : test_set) {
@@ -88,9 +88,10 @@ static void runTests(vector<PerftData> &test_set) {
              << "|" << setw(8) << pd.results[PERFT_CHECKS] << "[" << (pd.results[PERFT_CHECKS] == pd.targets[PERFT_CHECKS] ? "+" : "-") << "]"
              << "|" << setw(11) << pd.results[PERFT_CHECKMATES] << "[" << (pd.results[PERFT_CHECKMATES] == pd.targets[PERFT_CHECKMATES] ? "+" : "-") << "]"
              << "|" << setw(10) << fixed << setprecision(3) << seconds
+             << "|" << setw(10) << (int)(pd.results[PERFT_NODES] / seconds)
              << "|" << endl;
     }
-    cout << "|" << setfill('-') << setw(114) << "|" << endl;
+    cout << "|" << setfill('-') << setw(125) << "|" << endl;
 
     cout << "************************" << endl << endl;
 }

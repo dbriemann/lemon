@@ -277,24 +277,29 @@ bool Board0x88::undoLastMove() {
 //legal: return true
 //illegal: return false
 bool Board0x88::makeMoveIfLegal(Move m) {
-    //execute move
-    makeMove(m); //changes color/to_move
-    uint8_t attacked_color = (to_move + 1) % 2;
-
     //create vector with squares to be checked
     vector<Index> check_squares;
-    check_squares.push_back(king_square[attacked_color]); //position of king
-    //squares passing by castling
+
+    //squares passed by castling
     if(m.move_type == MOVETYPE_CASTLE_SHORT) {
-        check_squares.push_back(CASTLE_SHORT_PATH[attacked_color][0]);
-        check_squares.push_back(CASTLE_SHORT_PATH[attacked_color][1]);
+        check_squares.push_back(king_square[to_move]); //position of king
+        check_squares.push_back(CASTLE_SHORT_PATH[to_move][0]);
+        check_squares.push_back(CASTLE_SHORT_PATH[to_move][1]);
     } else if(m.move_type == MOVETYPE_CASTLE_LONG) {
-        check_squares.push_back(CASTLE_LONG_PATH[attacked_color][0]);
-        check_squares.push_back(CASTLE_LONG_PATH[attacked_color][1]);
+        check_squares.push_back(king_square[to_move]); //position of king
+        check_squares.push_back(CASTLE_LONG_PATH[to_move][0]);
+        check_squares.push_back(CASTLE_LONG_PATH[to_move][1]);
     }
 
+    //execute move
+    makeMove(m); //changes color/to_move
+
+    uint8_t attacked_color = (to_move + 1) % 2;
+    check_squares.push_back(king_square[attacked_color]); //position of king
+
+
     uint8_t ptype;
-    uint8_t wander_index;
+    Index wander_index;
 
     //test legality of position
     for(Piece &p : pieces[to_move]) {
