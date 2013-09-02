@@ -242,6 +242,14 @@ bool Board0x88::undoLastMove() {
         }
     }
 
+    //revert opp castling rights
+    if(last_move.castling_mask & DISABLE_SHORT_OPP_CASTLING) {
+        castle_short[to_move] = true;
+    }
+    if(last_move.castling_mask & DISABLE_LONG_OPP_CASTLING) {
+        castle_long[to_move] = true;
+    }
+
     //change color
     to_move = (to_move + 1) % 2;
 
@@ -413,8 +421,22 @@ void Board0x88::makeMove(Move m) {
     //if a capture has occured.. remove captured piece
     if(m.capture_type != EMPTY) {
         squares[capture_square]->square = capture_square;
+        //TODO..
         if(!removePiece(capture_square, pieces[(to_move+1) % 2])) { //; //capture
            // ERROR(moveToString(m));
+        }
+
+        //if a rook is captured.. check castling rights
+        if((m.capture_type & MASK_PIECE) == ROOK) {
+            uint8_t opp = (to_move + 1) % 2;
+
+            if(castle_short[opp] && m.to == CASTLE_SHORT_ROOK_PATH[opp][0]) {
+                m.castling_mask |= DISABLE_SHORT_OPP_CASTLING;
+                castle_short[opp] = false;
+            } else if(castle_long[opp] && m.to == CASTLE_LONG_ROOK_PATH[opp][0]) {
+                m.castling_mask |= DISABLE_LONG_OPP_CASTLING;
+                castle_long[opp] = false;
+            }
         }
     }
 
@@ -634,7 +656,20 @@ void Board0x88::genPseudoLegalKingMoves(Index square, vector<Move> &moves) {
         }
     }
 
-    //castling
+    //castling kingside
+    if(castle_short[to_move] && squares[CASTLE_SHORT_PATH[to_move][0]] == NULL && squares[CASTLE_SHORT_PATH[to_move][1]] == NULL ) {
+        target = CASTLE_SHORT_SQUARE[to_move];
+        m = Move(KING + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_CASTLE_SHORT, EMPTY);
+        moves.push_back(m);
+    }
+    //castling queenside
+    if(castle_long[to_move] && squares[CASTLE_LONG_PATH[to_move][0]] == NULL && squares[CASTLE_LONG_PATH[to_move][1]] == NULL
+            && squares[CASTLE_LONG_EXTRA_SQUARE[to_move]] == NULL) {
+        target = CASTLE_LONG_SQUARE[to_move];
+        m = Move(KING + COLOR_PIECE_OFFSET[to_move], square, target, MOVETYPE_CASTLE_LONG, EMPTY);
+        moves.push_back(m);
+    }
+/*
     if(to_move == WHITE) {
         //castling kingside
         if(castle_short[WHITE] && squares[CASTLE_SHORT_PATH[WHITE][0]] == NULL && squares[CASTLE_SHORT_PATH[WHITE][1]] == NULL) {
@@ -662,6 +697,7 @@ void Board0x88::genPseudoLegalKingMoves(Index square, vector<Move> &moves) {
             moves.push_back(m);
         }
     }
+*/
 }
 
 string Board0x88::getFENCode() const {

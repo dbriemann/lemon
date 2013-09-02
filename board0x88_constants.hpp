@@ -9,6 +9,8 @@ static const uint8_t INVALID_INDEX = 0x88;
 static const uint8_t NO_EN_PASSENT = 127;
 static const uint8_t DISABLE_SHORT_CASTLING = 0x1;
 static const uint8_t DISABLE_LONG_CASTLING = 0x2;
+static const uint8_t DISABLE_SHORT_OPP_CASTLING = 0x4;
+static const uint8_t DISABLE_LONG_OPP_CASTLING = 0x8;
 //static const uint8_t DISABLE_BOTH_CASTLING = 0x3;
 
 //castling squares
@@ -17,6 +19,7 @@ static const Index CASTLE_SHORT_PATH[2][2] = {{0x05, 0x06}, {0x75, 0x76}};
 static const Index CASTLE_SHORT_SQUARE[2] = {0x06, 0x76};
 static const Index CASTLE_LONG_ROOK_PATH[2][2] = {{0x00, 0x03},{0x70, 0x73}};
 static const Index CASTLE_LONG_PATH[2][2] = {{0x03, 0x02}, {0x73, 0x72}};
+static const Index CASTLE_LONG_EXTRA_SQUARE[2] = {0x01, 0x71};
 static const Index CASTLE_LONG_SQUARE[2] = {0x02, 0x72};
 
 //pawn starting square range, for two step advance

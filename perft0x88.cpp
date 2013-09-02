@@ -46,6 +46,30 @@ static void perft(Board0x88 &board, Move *last_move, int depth, PerftData &pdata
     }
 }
 
+static void pipaperft(Board0x88 &board, int depth, int splitdepth, PerftData &pdata) {
+    vector<Move> moves;
+
+    if(depth == pdata.depth) {
+        pdata.results[PERFT_NODES]++;
+    } else {
+        moves.clear();
+        board.genPseudoLegalMoves(moves);
+
+        for(Move &m : moves) {
+            if(depth == splitdepth) {
+                pdata.results[PERFT_NODES] = 0UL;
+            }
+            if(board.makeMoveIfLegal(m)) {
+                pipaperft(board, depth+1, splitdepth, pdata);
+                board.undoLastMove();
+                if(depth == splitdepth) {
+                    cout << m.toString() << " : " << pdata.results[PERFT_NODES] << endl;
+                }
+            }
+        }
+    }
+}
+
 static void runTests(vector<PerftData> &test_set) {
     Board0x88 board;
     CPUTimer cpu_timer;
@@ -96,7 +120,7 @@ static void runTests(vector<PerftData> &test_set) {
     cout << "************************" << endl << endl;
 }
 
-int main() {
+int main() {    
     //starting position //pos1
     vector<PerftData> pos1;
     pos1.push_back(PerftData("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 1, 20ULL, 0, 0, 0, 0, 0, 0));
@@ -148,12 +172,92 @@ int main() {
 
 
     //run all tests..
-    //runTests(pos1);
+    runTests(pos1);
     runTests(pos2);
-    //runTests(pos3);
-    //runTests(pos4);
-    //runTests(pos5);
-    //runTests(pos6);
+    runTests(pos3);
+    runTests(pos4);
+    runTests(pos5);
+    runTests(pos6);
 
+
+
+    //MOPY
+    //PerftData aaa("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 4, 4085603ULL, 757163, 1929, 128013, 15172, 25523, 43);
+    //PerftData aaa("r3k2r/p1ppqNb1/bn2pnp1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1", 3, 0, 0, 0, 0, 0, 0, 0);
+    //PerftData aaa("1r2k2r/p1ppqNb1/bn2pnp1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQk - 1 2", 2, 0, 0, 0, 0, 0, 0, 0);
+
+    //Board0x88 bb;
+    //bb.setFENPosition(aaa.fen);
+    //pipaperft(bb, 0, 0, aaa);
+
+
+/*
+    vector<PerftData> divided;
+//2. e1g1 moves =       2059 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4RK1 b kq - 1 1", 2, 2059, 0, 0, 0, 0, 0, 0));
+//2. e1c1 moves =       1887 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/2KR3R b kq - 1 1", 2, 1887, 0, 0, 0, 0, 0, 0));
+//    2. g2h3 moves =       1970 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1P/PPPBBP1P/R3K2R b KQkq - 0 1", 2, 1970, 0, 0, 0, 0, 0, 0));
+//    2. g2g3 moves =       1882 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2QPp/PPPBBP1P/R3K2R b KQkq - 0 1", 2, 1882, 0, 0, 0, 0, 0, 0));
+//    2. g2g4 moves =       1843 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P1P1/2N2Q1p/PPPBBP1P/R3K2R b KQkq g3 0 1", 2, 1843, 0, 0, 0, 0, 0, 0));
+//    2. b2b3 moves =       1964 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/1PN2Q1p/P1PBBPPP/R3K2R b KQkq - 0 1", 2, 1964, 0, 0, 0, 0, 0, 0));
+//    2. a2a3 moves =       2186 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/P1N2Q1p/1PPBBPPP/R3K2R b KQkq - 0 1", 2, 2186, 0, 0, 0, 0, 0, 0));
+//    2. a2a4 moves =       2149 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1", 2, 2149, 0, 0, 0, 0, 0, 0));
+//    2. d5e6 moves =       2241 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2Pnp1/4N3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1", 2, 2241, 0, 0, 0, 0, 0, 0));
+//    2. d5d6 moves =       1991 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn1Ppnp1/4N3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1", 2, 1991, 0, 0, 0, 0, 0, 0));
+//    2. c3a4 moves =       2203 ( 0.000 sec)
+//    2. c3b5 moves =       2138 ( 0.000 sec)
+//    2. c3d1 moves =       2040 ( 0.000 sec)
+//    2. c3b1 moves =       2038 ( 0.000 sec)
+//    2. e5c6 moves =       2027 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bnN1pnp1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 1 1", 2, 2027, 0, 0, 0, 0, 0, 0));
+//    2. e5d7 moves =       2124 ( 0.000 sec)
+//    2. e5f7 moves =       2080 ( 0.000 sec)
+//    2. e5g6 moves =       1997 ( 0.000 sec)
+//    2. e5g4 moves =       1878 ( 0.000 sec)
+//    2. e5d3 moves =       1803 ( 0.000 sec)
+//    2. e5c4 moves =       1880 ( 0.000 sec)
+//    2. f3g3 moves =       2214 ( 0.000 sec)
+//    2. f3h3 moves =       2360 ( 0.000 sec)
+//    2. f3e3 moves =       2174 ( 0.000 sec)
+//    2. f3d3 moves =       2005 ( 0.000 sec)
+//    2. f3f4 moves =       2132 ( 0.000 sec)
+//    2. f3f5 moves =       2396 ( 0.000 sec)
+//    2. f3f6 moves =       2111 ( 0.000 sec)
+//    2. f3g4 moves =       2169 ( 0.000 sec)
+//    2. f3h5 moves =       2267 ( 0.000 sec)
+//    2. d2e3 moves =       2136 ( 0.000 sec)
+//    2. d2f4 moves =       2000 ( 0.000 sec)
+//    2. d2g5 moves =       2134 ( 0.000 sec)
+//    2. d2h6 moves =       2019 ( 0.000 sec)
+//    2. d2c1 moves =       1963 ( 0.000 sec)
+//    2. e2d3 moves =       2050 ( 0.000 sec)
+//    2. e2c4 moves =       2082 ( 0.000 sec)
+//    2. e2b5 moves =       2057 ( 0.000 sec)
+//    2. e2a6 moves =       1907 ( 0.000 sec)
+//    2. e2f1 moves =       2060 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPB1PPP/R3KB1R b KQkq - 1 1", 2, 2060, 0, 0, 0, 0, 0, 0));
+//    2. e2d1 moves =       1733 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPB1PPP/R2BK2R b KQkq - 1 1", 2, 1733, 0, 0, 0, 0, 0, 0));
+//    2. a1b1 moves =       1969 ( 0.000 sec)
+//    2. a1c1 moves =       1968 ( 0.000 sec)
+//    2. a1d1 moves =       1885 ( 0.000 sec)
+//    2. h1g1 moves =       2013 ( 0.000 sec)
+//    2. h1f1 moves =       1929 ( 0.000 sec)
+//    2. e1f1 moves =       1855 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4K1R b kq - 1 1", 2, 1855, 0, 0, 0, 0, 0, 0));
+//    2. e1d1 moves =       1894 ( 0.000 sec)
+    divided.push_back(PerftData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R2K3R b kq - 1 1", 2, 1894, 0, 0, 0, 0, 0, 0));
+
+    runTests(divided);
+*/
     return 0;
 }
