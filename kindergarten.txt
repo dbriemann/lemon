@@ -1,0 +1,602 @@
+u64 diagonalMask[64];
+//  diagonal bits for each square that are a1/h8 orientated
+
+u64 antidiagMask[64];
+//  diagonal bits for each square that are h1/a8 orientated
+
+u64 fillUpAttacks[64][8];
+//  For every combination of blockers ([64]) there is
+//  a bitboard of diagonal and antidiagonal attack sets for every square on a file
+//  this is a data compression technique
+
+u64 aFileAttacks[64][8];
+//  For every combination of blockers ([64]) there is
+//  a bitboard of file attack sets for every rank
+//  this is a data compression technique
+
+u8  firstRankAttacks[64][8];
+//  For every combination of blockers ([64]) there is
+//  a bitrank of rank attack sets for every file
+//  this is a data compression technique 
+
+
+u64 rankAttacks(u64 occ, u32 sq) {
+   u32 f = sq & 7;
+// isolate the file
+
+   u32 r = sq & ~7; // rank * 8
+// the number of bits to shift based on the rank
+
+   u32 o = (u32) (occ >> (r+1)) & 63;
+// For the occupied set, shift the selected rank to rank one
+// sence the first bit is always empty, nudge all bits down one
+// and make sure that only valid bits remain (index for [64])
+
+   return (u64)  firstRankAttacks[o][f] << r;
+// retrieve and return the attackset after shifting it back to the correct rank
+} 
+
+
+u64 fileAttacks(u64 occ, u32 sq) {
+   u32 f = sq & 7;
+// isolate the file
+
+   occ   =   0x0101010101010101 & (occ   >> f); // a-file
+// using an a-file mask select the file bits after haveing shifted them to the a-file
+ 
+   u32 o = ( 0x0080402010080400 *   occ ) >> 58;
+// using a 'magic number' multiply it by the a-file bits to propogate them to the a8 rank
+// then shift them down to the a1 rank
+// this is an easy magic to demonstrate:
+// note: that rows containing all zeros have been omitted and
+//       that two hex digits have been translated to binary  
+//   magic                          0    0 8 0 4 0 2 0 1 0 0 8 0 4 0 0
+// * blockers (occ)                 0    1 0 1 0 1 0 1 0 1 0 1 0 1 0 1    rook on a1 with all blockers
+//  ____________________________________________________________
+// +                             0000 0000 8 0 4 0 2 0 1 0 0 8 0 4 0 0
+// +                         0 0 1000 0000 4 0 2 0 1 0 0 8 0 4 0 0 
+// +                     0 0 8 0 0100 0000 2 0 1 0 0 8 0 4 0 0                     
+// +                 0 0 8 0 4 0 0010 0000 1 0 0 8 0 4 0 0   
+// +             0 0 8 0 4 0 2 0 0001 0000 0 8 0 4 0 0 
+// +         0 0 8 0 4 0 2 0 1 0 0000 1000 0 4 0 0 
+// +     0 0 8 0 4 0 2 0 1 0 0 8 0000 0010 0 0 
+// + 0 0 8 0 4 0 2 0 1 0 0 8 0 4 0000 0000 
+// _____________________________________________________________
+// = 0 0 8 0 c 0 e 0 f 0 f 8 f c 1111 1100 f c 7 c 3 c 1 c 1 c 0 4 0 0
+// here are the relevant bits    _______    that are to be shifted into the low byte  
+// (>> 58) here is the 58 bit           _                    
+// these bits drop off and are lost     ______________________________ 
+ 
+// in the set of blockers only the middle 6 bits count, so, if any of them are 0 then its bit from 
+// the stack of relevant bits will be missing as that row will be all zeros. 
+
+edited: this explaination works for bits on a file or a diagonal as they are widely spaced and do not invade the index area
+**********************************************************************************************************
+*// 'magics' work by using multipication to make parallel shifts of bits in a pattern to a mapped bit
+*// in a result. therefore, you can hand create magics by deciding where in the result that you would
+*// like a pattern bit to land' and then place a bit in the magic that when shifted in its turn is
+*// placed into the correct slot. 
+*
+*// example: 0100000001000000 are the possible bits of a pattern
+*//         this pattern will be shifted into bits 25 && 26 then shifted back to bits 1 && 2
+*//         this bit 0000000001000000 if it exist in the pattern is to be shifted to slot 25, and will be in the
+*//         7th shift, therefore, moveing the bit 6 places to the right from 25 gives this partial magic 1000000000000000000
+*//         this bit 0100000000000000 if it exist in the pattern is to be shifted to slot 26, and will be in the
+*//          15th shift, therefore, moveing the bit 14 places from 26 to the right gives this partial magic 100000000000
+*//          adding the partial magics together will form the complete magic 
+                                            10000001000000000000 
+                                                 100000001000000
+                                        ________________________
+                                       1000000010000000000000000 
+                              1000000010000000000000000000000000 
+                              __________________________________
+                              1000000011000000010000000000000000
+                                      || >> 24
+
+I have no idea how to create an index from a pattern of closely spaced bits as they might be along a rank for rook blockers
+
+[b]Anyone?[/b]
+
+edit2: maybe just get the rank blockers similar to the way Gerd does it and then place them in the first 6 bits and shift the file bits magic index down to bit 7? I need to study pradu's magic for clues!
+end edit2
+                                              
+**********************************************************************************************************
+end edit
+
+// extreme compression of data can be achived for indexs of 9 to 16 bits if they are split in half 
+// and each used to retrieve a possible attack set that when anded together yeilds the true attack set.
+// or the indexs are used to retrieve two patial indexs that when combined point to a much smaller table.
+// the idea is that half of the attack set is represented many times in the big table with the other half
+// being different, so, just lookup each half seperatly in much smaller tables!                   
+   
+   return  ( aFileAttacks[o][sq>>3]    ) << f;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/////////////////////////////////////////////
+/*******************************************************************/ 
+/* 
+The magic multiplication bitboard attacks 
+as part of the board structure. 
+The original code comes from Gerd Isenberg. 
+
+(c) 2006 Harald Lüßen 
+*/ 
+/*******************************************************************/ 
+
+
+#include "bb_ifdef.h" 
+#include "bb_basics.h" 
+#include "bb_bitboard.h" 
+#include "bb_board.h" 
+#include "bb_main.h" 
+
+
+#if USE_MAGIC_BITBOARDS() 
+
+/*******************************************************************/ 
+
+/* 
+    directions and shifts 
+    +-----+-----+-----+ 
+    |<<= 9|<<= 8|<<= 7| 
+    +-----+-----+-----+ 
+    |<<= 1|     |>>= 1| 
+    +-----+-----+-----+ 
+    |>>= 7|>>= 8|>>= 9| 
+    +-----+-----+-----+ 
+
+    We use this mapping of the normal board squares to bitboard bits 
+    +-------------------------+ 
+    | 63 62 61 60 59 58 57 56 | 8 
+    | 55 54 53 52 51 50 49 48 | 7 
+    | 47 46 45 44 43 42 41 40 | 6 
+    | 39 38 37 36 35 35 33 32 | 5 
+    | 31 30 29 28 27 26 25 24 | 4 
+    | 23 22 21 20 19 18 17 16 | 3 
+    | 15 14 13 12 11 10  9  8 | 2 
+    |  7  6  5  4  3  2  1  0 | 1 
+    +-------------------------+ 
+       a  b  c  d  e  f  g  h 
+*/ 
+
+/*******************************************************************/ 
+
+/** 
+Possible Attacks of a sliding piece (8 positions) in a single line of squares 
+filled with other pieces (8 bits, 256 values). 
+Returns a byte with all bits set which can be reached through empty positions 
+and the first blocked position. 
+This is a copy of Board::slider_attacks[64][8]; In this quick hack I have access problems. 
+*/ 
+byte firstRankAttacks[64][8]; 
+
+// Projection of 8 bit first rank pattern (with 6 bit index b1..g1) 
+// in north direction through the board, for slider on each file. 
+// This is used for diagonal attacks. 
+Bitboard fillUpAttacks[64][8]; 
+
+// Bitboard with 8 bit h-file pattern (with 6 bit index h2..h7) 
+// for slider on each rank. This is used for vertical file attacks. 
+Bitboard hFileAttacks[64][8]; 
+
+// Mask for the diagonal slider rays 
+Bitboard h1a8DiagonalMask[64]; 
+
+// Mask for the diagonal slider rays 
+Bitboard a1h8DiagonalMask[64]; 
+
+
+/*******************************************************************/ 
+
+#if 0 // good for 64 bit machines 
+
+Bitboard rankAttacks( Bitboard occ, int sq ) 
+{ 
+   int f = sq &  7; 
+   int r = sq & ~7; // rank * 8 
+   int o = (int)(occ >> (r+1)) & 0x3f; 
+   return (Bitboard)firstRankAttacks[o][f] << r; 
+} 
+
+Bitboard fileAttacks( Bitboard occ, int sq ) 
+{ 
+   int f = sq & 7; 
+   occ   =   C64(0x0101010101010101) & (occ   >> f); // h-file 
+   int o = ( C64(0x0080402010080400) *  occ ) >> 58; // h2..h7 -> bits 63..58 -> bits 5..0 
+   return  ( hFileAttacks[o][sq >> 3]       ) << f;    
+} 
+
+Bitboard diagonalAttacks( Bitboard occ, int sq ) 
+{ 
+   int f = sq & 7; 
+   occ   = ( h1a8DiagonalMask[sq]    &  occ ); 
+   // 1 step west and stripes northward to bits (64)63..57 
+   // without unimportant edge bits -> bits 63..58 -> bits 5..0 
+   int o = ( C64(0x0202020202020202) *  occ ) >> 58; 
+   return  ( h1a8DiagonalMask[sq]    &  fillUpAttacks[o][f] ); 
+} 
+
+Bitboard antiDiagAttacks( Bitboard occ, int sq ) 
+{ 
+   int f = sq & 7; 
+   occ   = ( a1h8DiagonalMask[sq]    &  occ ); 
+   // 1 step west and stripes northward to bits (64)63..57 
+   // without unimportant edge bits -> bits 63..58 -> bits 5..0 
+   int o = ( C64(0x0202020202020202) *  occ ) >> 58; 
+   return  ( a1h8DiagonalMask[sq]    &  fillUpAttacks[o][f] ); 
+} 
+
+#else // good for 32 bit machines 
+
+// for all getters 
+// @param occ - the occupied bitboard 
+//        sq  - square index 0..63 (a1..h8) 
+// @return the attack set 
+Bitboard rankAttacks( Bitboard occupied, int sq ) 
+{ 
+   union { Bits64 b; struct { unsigned int l; unsigned int h; }; } b; // little endian! 
+   int f = sq & 7; 
+   int r = sq & 24; // 8 * folded rank 
+   if ( sq < 32 ) { 
+      b.l = (((unsigned int)occupied) >> (r+1)) & 63; 
+      b.l = firstRankAttacks[b.l][f] << r; 
+      b.h = 0; 
+   } else { 
+      b.l = 0; 
+      b.h = (((unsigned int)(occupied>>32)) >> (r+1)) & 63; 
+      b.h = firstRankAttacks[b.h][f] << r; 
+   } 
+   return b.b; 
+} 
+
+// file attacks with two reversed rotations 
+// 1. for the occupied state to map a2..a7 to h8..c8 
+// 2. for the attacks from a1..h1 to h8..h1 
+Bitboard fileAttacks( Bitboard occupied, int sq ) 
+{ 
+   union { Bits64 b; struct { unsigned int l; unsigned int h; }; } b; // little endian! 
+   int f = sq & 7; 
+   b.b = occupied; 
+   b.l = (b.l >> f) & 0x01010101; 
+   b.h = (b.h >> f) & 0x01010101; 
+   b.l = (b.l << 4) + b.h; 
+   b.h = (b.l       * 0x10080402) >> 26; 
+   b.l = 0x08040201 * firstRankAttacks[b.h][(sq^56)>>3]; 
+   b.h =((b.l << 4) & 0x80808080) >> (f^7); 
+   b.l = (b.l       & 0x80808080) >> (f^7); 
+   return b.b; 
+} 
+
+Bitboard diagonalAttacks( Bitboard occupied, int sq ) 
+{ 
+   union { Bits64 b; struct { unsigned int l; unsigned int h; }; } b; // little endian! 
+   b.b = occupied & h1a8DiagonalMask[sq]; 
+   b.h = ((b.l + b.h) * 0x02020202) >> 26; 
+   b.h = b.l = 0x01010101 * firstRankAttacks[b.h][sq&7]; 
+   return b.b & h1a8DiagonalMask[sq]; 
+} 
+
+Bitboard antiDiagAttacks( Bitboard occupied, int sq ) 
+{ 
+   union { Bits64 b; struct { unsigned int l; unsigned int h; }; } b; // little endian! 
+   b.b = occupied & a1h8DiagonalMask[sq]; 
+   b.h = ((b.l + b.h) * 0x02020202) >> 26; 
+   b.h = b.l = 0x01010101 * firstRankAttacks[b.h][sq&7]; 
+   return b.b & a1h8DiagonalMask[sq]; 
+} 
+
+#endif 
+
+
+/*******************************************************************/ 
+
+const Bitboard dirMaskRight[8] = 
+{ 
+    // 0, line_h, line_gh, line_fh, line_eh, line_dh, line_ch, line_bh, 
+    0, C64(0x0101010101010101), C64(0x0303030303030303), C64(0x0707070707070707), C64(0x0f0f0f0f0f0f0f0f), 
+    C64(0x1f1f1f1f1f1f1f1f), C64(0x3f3f3f3f3f3f3f3f), C64(0x7f7f7f7f7f7f7f7f) 
+}; 
+
+const Bitboard dirMaskLeft[8] = 
+{ 
+    // line_ag, line_af, line_ae, line_ad, line_ac, line_ab, line_a, 0, 
+    C64(0xfefefefefefefefe), C64(0xfcfcfcfcfcfcfcfc), C64(0xf8f8f8f8f8f8f8f8), C64(0xf0f0f0f0f0f0f0f0), 
+    C64(0xe0e0e0e0e0e0e0e0), C64(0xc0c0c0c0c0c0c0c0), C64(0x8080808080808080), 0 
+}; 
+
+const Bitboard dirMaskUp[8] = 
+{ 
+    // row_28, row_38, row_48, row_58, row_68, row_78, row_8, 0, 
+    C64(0xffffffffffffff00), C64(0xffffffffffff0000), C64(0xffffffffff000000), C64(0xffffffff00000000), 
+    C64(0xffffff0000000000), C64(0xffff000000000000), C64(0xff00000000000000), 0 
+}; 
+
+const Bitboard dirMaskDown[8] = 
+{ 
+    // 0, row_1, row_12, row_13, row_14, row_15, row_16, row_17, 
+    0, C64(0x00000000000000ff), C64(0x000000000000ffff), C64(0x0000000000ffffff), C64(0x00000000ffffffff), 
+    C64(0x000000ffffffffff), C64(0x0000ffffffffffff), C64(0x00ffffffffffffff) 
+}; 
+
+
+/*******************************************************************/ 
+
+/** 
+Prepare the slider attacks transformation tables. 
+Put the scattered bits of an sliding attack pattern 
+back to the original bitboard. 
+*/ 
+void Board::init_slider_attacks_index() 
+{ 
+    for ( int file = 0; file < 8; ++file ) 
+    { 
+        for ( int occ = 0; occ < 64; ++occ ) 
+        { 
+            // Possible Attacks of a sliding piece (8 positions) in a single line of squares 
+            // filled with other pieces (8 bits, 256 values). 
+            // Returns a byte with all bits set which can be reached through empty positions 
+            // and the first blocked position. 
+            // This is a copy of Board::slider_attacks[64][8]; In this quick hack I have access problems. 
+            firstRankAttacks[occ][file] = slider_attacks[occ][file]; 
+
+            // Projection of 8 bit first rank pattern (with 6 bit index b1..g1) 
+            // in north direction through the board, for slider on each file. 
+            // This is used for diagonal attacks. 
+            fillUpAttacks[occ][file]  = C64(0x0101010101010101) * slider_attacks[occ][file]; 
+
+            // Bitboard with 8 bit h-file pattern (with 6 bit index h2..h7) 
+            // for slider on each rank. This is used for vertical file attacks. 
+                                        // Start with 8 bit first rank pattern (with 6 bit index b1..g1) 
+                                        // and shift it in northwest direction through the board. 
+            hFileAttacks[occ][file^7] = ( ( C64(0x8040201008040201) * slider_attacks[occ][file]) 
+                                        // That is vertically ordered on a-file (7..0) 
+                                         &  C64(0x8080808080808080) 
+                                        // and shifted to the h-hile 
+                                        ) >> 7; 
+                                        // where it is stored in mirrored order (0..7), done by file^7. 
+        } 
+    } 
+
+    // Mask for the diagonal slider rays 
+    for ( int sq = 0; sq < 64; ++sq ) 
+    { 
+        int f = sq &  7; 
+        int r = sq >> 3; 
+        if ( f >= r ) 
+        { 
+            h1a8DiagonalMask[sq] = C64(0x8040201008040201) >> ((f - r) * 8); 
+        } 
+        else 
+        { 
+            h1a8DiagonalMask[sq] = C64(0x8040201008040201) << ((r - f) * 8); 
+        } 
+        f = 7 - f; 
+        if ( f >= r ) 
+        { 
+            a1h8DiagonalMask[sq] = C64(0x0102040810204080) >> ((f - r) * 8); 
+        } 
+        else 
+        { 
+            a1h8DiagonalMask[sq] = C64(0x0102040810204080) << ((r - f) * 8); 
+        } 
+    } 
+} 
+
+
+/*******************************************************************/ 
+
+/** 
+Get a bitboard with all positions set to 1 which can be attacked 
+from a bishop, rook or queen on the square moving in the direction. 
+*/ 
+Bitboard Board::direction_attacks( byte square, byte dir ) const 
+{ 
+    Bitboard result; 
+    Bitboard occ = wpieces_ | bpieces_; 
+
+    // 4 3 2 
+    // 5 0 1 
+    // 6 7 8 
+    switch ( dir ) 
+    { 
+      case 1: 
+        result = rankAttacks( occ, square ); 
+        result &= dirMaskRight[square & 7]; 
+        break; 
+      case 5: 
+        result = rankAttacks( occ, square ); 
+        result &= dirMaskLeft[square & 7]; 
+        break; 
+      case 7: 
+        result = fileAttacks( occ, square ); 
+        result &= dirMaskDown[square >> 3]; 
+        break; 
+      case 3: 
+        result = fileAttacks( occ, square ); 
+        result &= dirMaskUp[square >> 3]; 
+        break; 
+      case 8: 
+        result = diagonalAttacks( occ, square ); 
+        result &= dirMaskRight[square & 7]; 
+        break; 
+      case 4: 
+        result = diagonalAttacks( occ, square ); 
+        result &= dirMaskLeft[square & 7]; 
+        break; 
+      case 2: 
+        result = antiDiagAttacks( occ, square ); 
+        result &= dirMaskRight[square & 7]; 
+        break; 
+      case 6: 
+        result = antiDiagAttacks( occ, square ); 
+        result &= dirMaskLeft[square & 7]; 
+        break; 
+      default: 
+        result = 0; 
+        break; 
+    } 
+
+    return result; 
+} 
+
+
+/*******************************************************************/ 
+
+/** 
+Get a bitboard with all positions set to 1 which can be attacked 
+from a rook or queen on the square. 
+*/ 
+Bitboard Board::orthogonal_attacks( byte square ) const 
+{ 
+    Bitboard occ = wpieces_ | bpieces_; 
+    return rankAttacks( occ, square ) | fileAttacks( occ, square ); 
+} 
+
+
+/*******************************************************************/ 
+
+/** 
+Get a bitboard with all positions set to 1 which can be attacked 
+from a bishop or queen on the square. 
+*/ 
+Bitboard Board::diagonal_attacks( byte square ) const 
+{ 
+    Bitboard occ = wpieces_ | bpieces_; 
+    return diagonalAttacks( occ, square ) | antiDiagAttacks( occ, square ); 
+} 
+
+
+/*******************************************************************/ 
+/* 
+The original from Gerd Isenberg (with a1=0, b1, h8=63-mapping): 
+
+u64 diagonalMask[64]; 
+u64 antidiagMask[64]; 
+u64 fillUpAttacks[64][8]; 
+u64 aFileAttacks[64][8]; 
+u8  firstRankAttacks[64][8]; 
+
+u64 rankAttacks(u64 occ, u32 sq) { 
+   u32 f = sq &  7; 
+   u32 r = sq & ~7; // rank * 8 
+   u32 o = (u32)(occ >> (r+1)) & 63; 
+   return (u64) firstRankAttacks[o][f] << r; 
+} 
+
+u64 fileAttacks(u64 occ, u32 sq) { 
+   u32 f = sq & 7; 
+   occ   =   0x0101010101010101 & (occ   >> f); // a-file 
+   u32 o = ( 0x0080402010080400 *  occ ) >> 58; 
+   return  ( aFileAttacks[o][sq>>3]    ) << f;    
+} 
+
+u64 diagonalAttacks(u64 occ, u32 sq) { 
+   u32 f = sq & 7; 
+   occ   = ( diagonalMask[sq]   &  occ ); 
+   u32 o = ( 0x0202020202020202 *  occ ) >> 58; 
+   return  ( diagonalMask[sq]   &  fillUpAttacks[o][f] ); 
+} 
+
+u64 antiDiagAttacks(u64 occ, u32 sq) { 
+   u32 f = sq & 7; 
+   occ   = ( antidiagMask[sq]   &  occ ); 
+   u32 o = ( 0x0202020202020202 *  occ ) >> 58; 
+   return  ( antidiagMask[sq]   &  fillUpAttacks[o][f] ); 
+} 
+
+for (x=0; x<64; x++) { 
+   fillupAttacks[x][file] = 0x0101010101010101ULL * firstRankAttacks[x][file]; 
+   aFileAttacks[x][file^7] = ((0x8040201008040201ULL * firstRankAttacks[x][file]) & 0x8080808080808080ULL) >> 7; 
+} 
+
+And another variant: 
+
+const u64 diagonalMask[64] = { 
+   0x8040201008040201, 
+   0x0080402010080402, 
+   .... 
+}; 
+
+const u64 antiDiagMask[64] = { 
+   0x0000000000000001, 
+   0x0000000000000102, 
+   ... 
+}; 
+
+// for all getters 
+// @param occ - the occupied bitboard 
+//        sq  - square index 0..63 (a1..h8) 
+// @return the attack set 
+u64 rankAttacks(u64 occupied, u32 sq) { 
+   union {u64 b; struct {u32 l; u32 h;};} b; // little endian! 
+   u32 f = sq & 7; 
+   u32 r = sq & 24; // 8 * folded rank 
+   if ( sq < 32 ) { 
+      b.l = (((u32)occupied) >> (r+1)) & 63; 
+      b.l = firstRankAttacks[b.l][f] << r; 
+      b.h = 0; 
+   } else { 
+      b.l = 0; 
+      b.h = (((u32)(occupied>>32)) >> (r+1)) & 63; 
+      b.h = firstRankAttacks[b.h][f] << r; 
+   } 
+   return b.b; 
+} 
+
+// file attacks with two reversed rotations 
+// 1. for the occupied state to map a2..a7 to h8..c8 
+// 2. for the attacks from a1..h1 to h8..h1 
+u64 fileAttacks(u64 occupied, u32 sq) { 
+   union {u64 b; struct {u32 l; u32 h;};} b; // little endian! 
+   u32 f = sq & 7; 
+   b.b = occupied; 
+   b.l = (b.l >> f) & 0x01010101; 
+   b.h = (b.h >> f) & 0x01010101; 
+   b.l = (b.l << 4) + b.h; 
+   b.h = (b.l       * 0x10080402) >> 26; 
+   b.l = 0x08040201 * firstRankAttacks[b.h][(sq^56)>>3]; 
+   b.h =((b.l << 4) & 0x80808080) >> (f^7); 
+   b.l = (b.l       & 0x80808080) >> (f^7); 
+   return b.b; 
+} 
+
+u64 diagonalAttacks(u64 occupied, u32 sq) { 
+   union {u64 b; struct {u32 l; u32 h;};} b; // little endian! 
+   b.b = occupied & diagonalMask[sq]; 
+   b.h = ((b.l + b.h) * 0x02020202) >> 26; 
+   b.h = b.l = 0x01010101 * firstRankAttacks[b.h][sq&7]; 
+   return b.b & diagonalMask[sq]; 
+} 
+
+u64 antiDiagAttacks(u64 occupied, u32 sq) { 
+   union {u64 b; struct {u32 l; u32 h;};} b; // little endian! 
+   b.b = occupied & antiDiagMask[sq]; 
+   b.h = ((b.l + b.h) * 0x02020202) >> 26; 
+   b.h = b.l = 0x01010101 * firstRankAttacks[b.h][sq&7]; 
+   return b.b & antiDiagMask[sq]; 
+} 
+
+*/ 
+/*******************************************************************/ 
+
+#endif // #if USE_MAGIC_BITBOARDS() 
