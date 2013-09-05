@@ -9,6 +9,18 @@ using namespace std;
 #include "utility_functions.hpp"
 #include "utility_constants.hpp"
 
+/*
+ *northwest    north   northeast
+  noWe         nort         noEa
+          +7    +8    +9
+              \  |  /
+  west    -1 <-  0 -> +1    east
+              /  |  \
+          -9    -8    -7
+  soWe         sout         soEa
+  southwest    south   southeast
+ *
+ */
 
 
 struct BitBoard {
@@ -17,6 +29,7 @@ struct BitBoard {
      */
     U64 pieces_by_color[2];
     U64 pieces_by_type[6];
+
     //wrap all following into one U32?
     U8 to_move;
     bool castle_short[2];
@@ -27,14 +40,14 @@ struct BitBoard {
 
 
     /*
-     * constructors, copy-constructors, destructors
+     * Constructors, copy-constructors, destructors
      */
     BitBoard();
 
 
 
     /*
-     * utility methods
+     * Utility methods
      */
     inline void zeroAll();
     inline PieceType get(Index line, Index rank) const;
@@ -46,10 +59,7 @@ struct BitBoard {
 
 
 //    int32_t eval();
-//    string getFENCode() const;
-//    void setFENPosition(string fen);
 //    void setStartingPosition();
-//    void print() const;
 //    void genPseudoLegalMoves(vector<Move> &moves);
 //    void makeMove(Move m);
 //    bool undoLastMove();
