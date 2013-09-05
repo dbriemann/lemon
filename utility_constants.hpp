@@ -1,19 +1,11 @@
-#ifndef BB_DEFINITIONS_HPP
-#define BB_DEFINITIONS_HPP
+#ifndef UTILITY_CONSTANTS_HPP
+#define UTILITY_CONSTANTS_HPP
 
-#include <cstdlib>
+#include <string>
 using namespace std;
 
+#include "bb_definitions.hpp"
 
-/*
- * definitions
- */
-#define BOARD_SIZE 8
-
-#define WHITE 0
-#define BLACK 1
-
-#define NO_EN_PASSENT_IDX 0x80
 
 #define EMPTY     0x6
 
@@ -36,21 +28,11 @@ using namespace std;
 #define BLACK_QUEEN     0xC
 #define BLACK_KING      0xD
 #define MASK_COLOR      0x8
-#define MASK_PIECE      0x7
-
-/*
- * type redefinitions
- */
-typedef uint8_t U8; typedef int8_t I8;
-typedef uint16_t U16; typedef int16_t I16;
-typedef uint32_t U32; typedef int32_t I32;
-typedef uint64_t U64; typedef int64_t I64;
-#define C64(constantU64) constantU64##ULL
-typedef U8 Index;
-typedef U8 PieceType;
-//typedef I8 Offset;
 
 
+static string COLORS[2] = {"White", "Black"};
+static char PIECE_SYMBOLS[14] = {'P', 'N', 'B', 'R', 'Q', 'K', ' ', '?', 'p', 'n', 'b', 'r', 'q', 'k'};
+static char CHESS_COORDS[BOARD_SIZE] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 
 
-#endif // BB_DEFINITIONS_HPP
+#endif // UTILITY_CONSTANTS_HPP

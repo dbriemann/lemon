@@ -5,45 +5,19 @@
 #include <ctime>
 using namespace std;
 
-#include "Board.hpp"
 #include "BitBoard.hpp"
-#include "Move.hpp"
+
+
 
 int main() {
     srand(time(0));
 
-    //Board *board = new Board0x88();
-    BitBoard board;
-    //board.setStartingPosition();
-    //string fen_old = board->getFENCode();
-    //board.print();
+    BitBoard bboard;
+    bboard.setStartingPosition();
+    cout << "WHITE: " << bboard.pieces_by_color[WHITE] << endl;
+    cout << "BLACK: " << bboard.pieces_by_color[BLACK] << endl;
+    bboard.print();
 
-    //board->setFENPosition("r1b2bnr/1pqkpPpp/p1B5/2pp4/8/5N2/PPPP1PPP/RNBQK2R b KQ - 0 7");
-    //board->print();
-    //((Board0x88 *)board)->removePiece(0, ((Board0x88 *)board)->pieces[WHITE]);
-    //board->print();
-
-    vector<Move> moves;
-
-    for(int x = 0; x < 100; x++) {
-        board.setStartingPosition();
-        board.genPseudoLegalMoves(moves);
-
-        while(moves.size() > 0) {
-        //for(int i = 0; i < 200; i++) {
-        //while(board->makeMoveIfLegal(moves[mnum])) {
-
-            //if(!board->makeMoveIfLegal(moves[mnum])) {
-            //    break;
-            //}
-            int mnum = rand() % moves.size();
-            board.makeMove(moves[mnum]);
-            board.print();
-            //board.makeMoveIfLegal(moves[mnum]);
-            moves.clear();
-            board.genPseudoLegalMoves(moves);
-        }
-    }
 
     return 0;
 }
