@@ -6,14 +6,14 @@
 using namespace std;
 
 #include "Board.hpp"
-#include "Board0x88.hpp"
+#include "BitBoard.hpp"
 #include "Move.hpp"
 
 int main() {
     srand(time(0));
 
     //Board *board = new Board0x88();
-    Board0x88 board;
+    BitBoard board;
     //board.setStartingPosition();
     //string fen_old = board->getFENCode();
     //board.print();

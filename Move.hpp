@@ -5,7 +5,7 @@
 #include <string>
 using namespace std;
 
-#include "board0x88_constants.hpp"
+//#include "board0x88_constants.hpp"
 #include "utility_constants.hpp"
 #include "utility_functions.hpp"
 

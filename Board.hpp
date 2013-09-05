@@ -10,7 +10,7 @@
 #include <vector>
 using namespace std;
 
-#include "board0x88_constants.hpp"
+//#include "board0x88_constants.hpp"
 #include "Move.hpp"
 
 struct Board {
