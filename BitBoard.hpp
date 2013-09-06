@@ -5,33 +5,30 @@
 #include <sstream>
 using namespace std;
 
-#include "bb_definitions.hpp"
+#include "lemon.hpp"
 #include "utility_functions.hpp"
 #include "utility_constants.hpp"
-
-/*
- *northwest    north   northeast
-  noWe         nort         noEa
-          +7    +8    +9
-              \  |  /
-  west    -1 <-  0 -> +1    east
-              /  |  \
-          -9    -8    -7
-  soWe         sout         soEa
-  southwest    south   southeast
- *
- */
+#include "Move.hpp"
+#include "MoveList.hpp"
 
 
 struct BitBoard {
     /*
      * BitBoards
      */
-    U64 pieces_by_color[2];
-    U64 pieces_by_type[6];
+    U64 pieces_bb[2];
+    U64 pawns_bb;
+    U64 knights_bb;
+    U64 bishops_bb;
+    U64 rooks_bb;
+    U64 queens_bb;
+    U64 kings_bb;
+
+    //U64 pieces_by_color[2];
+    //U64 pieces_by_type[6];
 
     //wrap all following into one U32?
-    U8 to_move;
+    U8 player;
     bool castle_short[2];
     bool castle_long[2];
     Index en_passent_index;
@@ -50,13 +47,18 @@ struct BitBoard {
      * Utility methods
      */
     inline void zeroAll();
-    inline PieceType get(Index line, Index rank) const;
-    inline void set(Index line, Index rank, PieceType type);
+    U8 get(Index line, Index rank) const;
+    void set(Index line, Index rank, OccupancyType type);
     void setFENPosition(string fen);
     string getFENCode() const;
     void setStartingPosition();
     void print() const;
 
+    /*
+     * Move generation methods
+     */
+    inline void genKnightMoves(MoveList &mlist);
+    inline U64 genPawnSingleStepTargetMask();
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -69,7 +71,7 @@ struct BitBoard {
 
 BitBoard::BitBoard() {
     zeroAll(); //bitboards
-    to_move = WHITE;
+    player = WHITE;
     castle_long[WHITE] = castle_long[BLACK] = castle_short[WHITE] = castle_short[BLACK] = true;
     en_passent_index = NO_EN_PASSENT_IDX;
     draw_counter = 0;
@@ -79,57 +81,141 @@ BitBoard::BitBoard() {
 
 inline
 void BitBoard::zeroAll() {
-    pieces_by_color[WHITE] = pieces_by_color[BLACK] = C64(0);
-    pieces_by_type[PAWN] = C64(0);
-    pieces_by_type[KNIGHT] = C64(0);
-    pieces_by_type[BISHOP] = C64(0);
-    pieces_by_type[ROOK] = C64(0);
-    pieces_by_type[QUEEN] = C64(0);
-    pieces_by_type[KING] = C64(0);
+    pieces_bb[WHITE] = pieces_bb[BLACK] = C64(0);
+    pawns_bb = C64(0);
+    knights_bb = C64(0);
+    bishops_bb = C64(0);
+    rooks_bb = C64(0);
+    queens_bb = C64(0);
+    kings_bb = C64(0);
+}
+
+inline
+void BitBoard::genKnightMoves(MoveList &mlist) {
+    register U64 bb;
+    U64 unocc_bb = ~(pieces_bb[WHITE] | pieces_bb[BLACK]);
+    U64 opp_bb = ~pieces_bb[(player + 1) % 2];
+    Move m = 0;
+    U32 from, to;
+
+    //for every knight of player's color
+    U64 play_knights_bb = knights_bb & pieces_bb[player];
+    while(play_knights_bb) {
+        //extract every knight
+        from = bitscanfwd(play_knights_bb);
+
+        //generate non-capture moves
+        //gen all targets for current knight
+        bb = KNIGHT_TARGET_BBS[from] & unocc_bb;
+        //create moves
+        while(bb) {
+            //extract target square
+            to = bitscanfwd(bb);
+
+            m = moveCreate(from, to, KNIGHT, EMPTY, EMPTY, EMPTY, EMPTY, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
+            mlist.put(m);
+
+            bb &= ~iBitMask(to);
+        }
+
+        //generate captures
+        bb = KNIGHT_TARGET_BBS[from] & opp_bb;
+        //create captures
+        while(bb) {
+            //extract target square
+            to = bitscanfwd(bb);
+
+            m = moveCreate(from, to, KNIGHT, EMPTY, EMPTY, EMPTY, EMPTY, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
+            mlist.put(m);
+
+            bb &= ~iBitMask(to);
+        }
+
+        play_knights_bb &= ~iBitMask(from);
+    }
+
+
+
+}
+
+inline
+U64 BitBoard::genPawnSingleStepTargetMask() {
+    U64 unocc = ~(pieces_bb[WHITE] | pieces_bb[BLACK]);
+    U64 sstmask = 0;
+
+    if(player == WHITE) {
+        sstmask = pawns_bb & pieces_bb[WHITE];
+        sstmask = _SHIFT_N(sstmask) & unocc;
+    } else {
+        sstmask = pawns_bb & pieces_bb[BLACK];
+        sstmask = _SHIFT_S(sstmask) & unocc;
+    }
+
+    return sstmask;
 }
 
 //inefficient
 //used only for utility functionality like extracting the FEN string
-inline
-PieceType BitBoard::get(Index line, Index rank) const {
+U8 BitBoard::get(Index line, Index rank) const {
     const Index bit = 8*rank + line;
     U8 color_offset = 0;
-    PieceType piece = EMPTY;
+    U8 piece = EMPTY;
 
-    if(pieces_by_color[BLACK] & (C64(1) << bit)) {
+    if(pieces_bb[BLACK] & iBitMask(bit)) {
         color_offset = MASK_COLOR;
     }
 
-    for(int t = 0; t <= KING; t++) {
-        if(pieces_by_type[t] & (C64(1) << bit)) {
-            piece = t;
-            break;
-        }
+    if(pawns_bb & iBitMask(bit)) {
+        piece = WPAWN;
+    } else if(knights_bb & iBitMask(bit)) {
+        piece = WKNIGHT;
+    } else if(bishops_bb & iBitMask(bit)) {
+        piece = WBISHOP;
+    } else if(rooks_bb & iBitMask(bit)) {
+        piece = WROOK;
+    } else if(queens_bb & iBitMask(bit)) {
+        piece = WQUEEN;
+    } else if(kings_bb & iBitMask(bit)) {
+        piece = WKING;
     }
 
     return piece | color_offset;
 }
 
 inline
-void BitBoard::set(Index line, Index rank, PieceType type) {
+void BitBoard::set(Index line, Index rank, OccupancyType type) {
     const U8 bit = 8*rank + line; //8*y + x == bit position in U64
 
     if(type == EMPTY) {
-        pieces_by_color[WHITE] &= ~(C64(1) << bit);
-        pieces_by_color[BLACK] &= ~(C64(1) << bit);
-        for(int t = 0; t <= KING; t++) {
-            pieces_by_type[t] &= ~(C64(1) << bit);
-        }
+        U64 rmask = ~(iBitMask(bit));
+        pieces_bb[WHITE] &= rmask;
+        pieces_bb[BLACK] &= rmask;
+        pawns_bb &= rmask;
+        knights_bb &= rmask;
+        bishops_bb &= rmask;
+        rooks_bb &= rmask;
+        queens_bb &= rmask;
+        kings_bb &= rmask;
     } else {
-        cout << COLORS[(type & MASK_COLOR) >> 3] << " : " << PIECE_SYMBOLS[type] << " at: " << intToString(line) << "," << intToString(rank) << " : "
-             << intToString(bit) << endl;
-        pieces_by_type[type & MASK_PIECE] |= (C64(1) << bit);
+        U64 amask = iBitMask(bit);
+        switch(type & MASK_PIECE) {
+            case PAWN:
+                pawns_bb |= amask; break;
+            case KNIGHT:
+                knights_bb |= amask; break;
+            case BISHOP:
+                bishops_bb |= amask; break;
+            case ROOK:
+                rooks_bb |= amask; break;
+            case QUEEN:
+                queens_bb |= amask; break;
+            case KING:
+                kings_bb |= amask; break;
+            default:
+                break;
+        }
         U8 color = (type & MASK_COLOR) >> 3;
-        pieces_by_color[color] |= (C64(1) << bit);
-        //pieces_by_color[(color+1) % 2] &= ~(C64(1) << bit);
-
-        cout << "WHITE: " << pieces_by_color[WHITE] << endl;
-        cout << "BLACK: " << pieces_by_color[BLACK] << endl;
+        pieces_bb[color] |= (C64(1) << bit);
     }
 }
 
@@ -161,31 +247,31 @@ void BitBoard::setFENPosition(string fen) {
                switch(c) {
                    //black pieces are lowercase letters
                    case 'p':
-                       set(x, y, BLACK_PAWN); break;
+                       set(x, y, BPAWN); break;
                    case 'n':
-                       set(x, y, BLACK_KNIGHT); break;
+                       set(x, y, BKNIGHT); break;
                    case 'k':
-                       set(x, y, BLACK_KING); break;
+                       set(x, y, BKING); break;
                    case 'b':
-                       set(x, y, BLACK_BISHOP); break;
+                       set(x, y, BBISHOP); break;
                    case 'r':
-                       set(x, y, BLACK_ROOK); break;
+                       set(x, y, BROOK); break;
                    case 'q':
-                       set(x, y, BLACK_QUEEN); break;
+                       set(x, y, BQUEEN); break;
 
                    //white pieces are uppercase letters
                    case 'P':
-                       set(x, y, WHITE_PAWN); break;
+                       set(x, y, WPAWN); break;
                    case 'N':
-                       set(x, y, WHITE_KNIGHT); break;
+                       set(x, y, WKNIGHT); break;
                    case 'K':
-                       set(x, y, WHITE_KING); break;
+                       set(x, y, WKING); break;
                    case 'B':
-                       set(x, y, WHITE_BISHOP); break;
+                       set(x, y, WBISHOP); break;
                    case 'R':
-                       set(x, y, WHITE_ROOK); break;
+                       set(x, y, WROOK); break;
                    case 'Q':
-                       set(x, y, WHITE_QUEEN); break;
+                       set(x, y, WQUEEN); break;
                    default:
                        string err = "FEN CODE CORRUPTED (PIECE -> ";
                        err += c; err += ")";
@@ -205,9 +291,9 @@ void BitBoard::setFENPosition(string fen) {
         iss >> c;
 
         if(c == 'w') {
-            to_move = WHITE;
+            player = WHITE;
         } else if(c == 'b') {
-            to_move = BLACK;
+            player = BLACK;
         } else {
             string err = "FEN CODE CORRUPTED (COLOR ->";
             err += c; err += ")";
@@ -317,29 +403,29 @@ string BitBoard::getFENCode() const {
                 }
 
                 switch (c) {
-                    case BLACK_PAWN:
+                    case BPAWN:
                         fen += 'p'; break;
-                    case BLACK_KNIGHT:
+                    case BKNIGHT:
                         fen += 'n'; break;
-                    case BLACK_BISHOP:
+                    case BBISHOP:
                         fen += 'b'; break;
-                    case BLACK_ROOK:
+                    case BROOK:
                         fen += 'r'; break;
-                    case BLACK_QUEEN:
+                    case BQUEEN:
                         fen += 'q'; break;
-                    case BLACK_KING:
+                    case BKING:
                         fen += 'k'; break;
-                    case WHITE_PAWN:
+                    case WPAWN:
                         fen += 'P'; break;
-                    case WHITE_KNIGHT:
+                    case WKNIGHT:
                         fen += 'N'; break;
-                    case WHITE_BISHOP:
+                    case WBISHOP:
                         fen += 'B'; break;
-                    case WHITE_ROOK:
+                    case WROOK:
                         fen += 'R'; break;
-                    case WHITE_QUEEN:
+                    case WQUEEN:
                         fen += 'Q'; break;
-                    case WHITE_KING:
+                    case WKING:
                         fen += 'K'; break;
                     default:
                         break;
@@ -358,7 +444,7 @@ string BitBoard::getFENCode() const {
     fen += " ";
 
     //to move
-    if(to_move == WHITE) {
+    if(player == WHITE) {
         fen += "w";
     } else {
         fen += "b";
@@ -425,7 +511,7 @@ void BitBoard::print() const {
     }
     cout << "        a   b   c   d   e   f   g   h" << endl << endl << endl;
 
-    cout << "   Color to move: " << COLORS[to_move] << endl;
+    cout << "   Color to move: " << COLORS[player] << endl;
 
     cout << "   Castling rights --- White: ";
     if(castle_short[WHITE]) {

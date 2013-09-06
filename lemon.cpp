@@ -6,18 +6,22 @@
 using namespace std;
 
 #include "BitBoard.hpp"
-
-
+#include "MoveList.hpp"
 
 int main() {
     srand(time(0));
 
     BitBoard bboard;
     bboard.setStartingPosition();
-    cout << "WHITE: " << bboard.pieces_by_color[WHITE] << endl;
-    cout << "BLACK: " << bboard.pieces_by_color[BLACK] << endl;
+
     bboard.print();
 
+    MoveList mlist;
+    bboard.genKnightMoves(mlist);
+
+    for(int i = 0; i < mlist.size; i++) {
+        cout << moveToStr(mlist.moves[i]) << endl;
+    }
 
     return 0;
 }
