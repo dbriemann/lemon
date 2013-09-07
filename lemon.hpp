@@ -21,26 +21,29 @@ typedef U8 Index;
 /*
  * Boad & Piece definitions
  */
-#define BOARD_SIZE 8
-#define NO_EN_PASSENT_IDX 0x80
+#define BOARD_SIZE                  8
+#define NO_EN_PASSENT_IDX           0x80
 #define CASTLE_SHORT_WHITE_TARGET   6
 #define CASTLE_SHORT_BLACK_TARGET   62
 #define CASTLE_LONG_WHITE_TARGET    2
 #define CASTLE_LONG_BLACK_TARGET    58
-#define MASK_COLOR      0x8
-#define MASK_PIECE      0x7
+#define MASK_COLOR                  0x8
+#define MASK_PIECE                  0x7
+#define FLIP(x) ((x+1)%2)
+
+#define NONE 0
 
 enum Color {
     WHITE, BLACK
 };
 
 enum PieceType {
-    PAWN=1, KNIGHT, BISHOP, ROOK, QUEEN, KING
+    PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 };
 
 enum OccupancyType {
-    EMPTY, WPAWN, WKNIGHT, WBISHOP, WROOK, WQUEEN, WKING,
-    BPAWN=9, BKNIGHT, BBISHOP, BROOK, BQUEEN, BKING
+    WPAWN, WKNIGHT, WBISHOP, WROOK, WQUEEN, WKING, EMPTY,
+    BPAWN=8, BKNIGHT, BBISHOP, BROOK, BQUEEN, BKING
 };
 
 
@@ -104,7 +107,7 @@ enum OccupancyType {
 #define RANK_8 0xFF00000000000000ULL
 
 
-#define SQ(x,y) (((x) << 3) | (y))
+#define SQ(f,r) (((r) << 3) | (f))
 #define FILE(sq) ((sq) &  7)
 #define RANK(sq) ((sq) >> 3)
 

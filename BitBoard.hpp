@@ -16,16 +16,14 @@ struct BitBoard {
     /*
      * BitBoards
      */
-    U64 pieces_bb[2];
-    U64 pawns_bb;
-    U64 knights_bb;
-    U64 bishops_bb;
-    U64 rooks_bb;
-    U64 queens_bb;
-    U64 kings_bb;
+    U64 pieces_by_color_bb[2];
+    U64 pieces_by_type_bb[6];
 
-    //U64 pieces_by_color[2];
-    //U64 pieces_by_type[6];
+    /*
+     * Arrays to help in certain situation
+     */
+    U8 occupancy[64];
+    U8 kings[2];
 
     //wrap all following into one U32?
     U8 player;
@@ -81,26 +79,26 @@ BitBoard::BitBoard() {
 
 inline
 void BitBoard::zeroAll() {
-    pieces_bb[WHITE] = pieces_bb[BLACK] = C64(0);
-    pawns_bb = C64(0);
-    knights_bb = C64(0);
-    bishops_bb = C64(0);
-    rooks_bb = C64(0);
-    queens_bb = C64(0);
-    kings_bb = C64(0);
+    pieces_by_color_bb[WHITE] = pieces_by_color_bb[BLACK] = C64(0);
+    for(int i = PAWN; i <= KING; i++) {
+        pieces_by_type_bb[i] = C64(0);
+    }
+    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
+        occupancy[i] = EMPTY;
+    }
 }
 
 inline
 void BitBoard::genKnightMoves(MoveList &mlist) {
     register U64 bb;
-    U64 unocc_bb = ~(pieces_bb[WHITE] | pieces_bb[BLACK]);
-    U64 opp_bb = ~pieces_bb[(player + 1) % 2];
+    U64 unocc_bb = ~(pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK]);
+    U64 opp_bb = pieces_by_color_bb[FLIP(player)];
     Move m = 0;
-    U32 from, to;
+    U32 from, to, cap;
 
     //for every knight of player's color
-    U64 play_knights_bb = knights_bb & pieces_bb[player];
-    while(play_knights_bb) {
+    U64 play_knights_bb = pieces_by_type_bb[KNIGHT] & pieces_by_color_bb[player];
+    while(play_knights_bb) {        
         //extract every knight
         from = bitscanfwd(play_knights_bb);
 
@@ -108,11 +106,11 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
         //gen all targets for current knight
         bb = KNIGHT_TARGET_BBS[from] & unocc_bb;
         //create moves
-        while(bb) {
+        while(bb) {            
             //extract target square
             to = bitscanfwd(bb);
 
-            m = moveCreate(from, to, KNIGHT, EMPTY, EMPTY, EMPTY, EMPTY, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
+            m = moveCreate(from, to, KNIGHT, EMPTY, EMPTY, NONE, NONE, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
             mlist.put(m);
 
             bb &= ~iBitMask(to);
@@ -124,8 +122,10 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
         while(bb) {
             //extract target square
             to = bitscanfwd(bb);
+            cap = occupancy[to];
+            //TODO check capture goodness
 
-            m = moveCreate(from, to, KNIGHT, EMPTY, EMPTY, EMPTY, EMPTY, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
+            m = moveCreate(from, to, KNIGHT, cap, EMPTY, NONE, NONE, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
             mlist.put(m);
 
             bb &= ~iBitMask(to);
@@ -140,14 +140,14 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
 
 inline
 U64 BitBoard::genPawnSingleStepTargetMask() {
-    U64 unocc = ~(pieces_bb[WHITE] | pieces_bb[BLACK]);
+    U64 unocc = ~(pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK]);
     U64 sstmask = 0;
 
     if(player == WHITE) {
-        sstmask = pawns_bb & pieces_bb[WHITE];
+        sstmask = pieces_by_type_bb[PAWN] & pieces_by_color_bb[WHITE];
         sstmask = _SHIFT_N(sstmask) & unocc;
     } else {
-        sstmask = pawns_bb & pieces_bb[BLACK];
+        sstmask = pieces_by_type_bb[PAWN] & pieces_by_color_bb[BLACK];
         sstmask = _SHIFT_S(sstmask) & unocc;
     }
 
@@ -157,26 +157,26 @@ U64 BitBoard::genPawnSingleStepTargetMask() {
 //inefficient
 //used only for utility functionality like extracting the FEN string
 U8 BitBoard::get(Index line, Index rank) const {
-    const Index bit = 8*rank + line;
+    const Index bit = SQ(line,rank);//8*rank + line;
     U8 color_offset = 0;
     U8 piece = EMPTY;
 
-    if(pieces_bb[BLACK] & iBitMask(bit)) {
+    if(pieces_by_color_bb[BLACK] & iBitMask(bit)) {
         color_offset = MASK_COLOR;
     }
 
-    if(pawns_bb & iBitMask(bit)) {
-        piece = WPAWN;
-    } else if(knights_bb & iBitMask(bit)) {
-        piece = WKNIGHT;
-    } else if(bishops_bb & iBitMask(bit)) {
-        piece = WBISHOP;
-    } else if(rooks_bb & iBitMask(bit)) {
-        piece = WROOK;
-    } else if(queens_bb & iBitMask(bit)) {
-        piece = WQUEEN;
-    } else if(kings_bb & iBitMask(bit)) {
-        piece = WKING;
+
+    //TODO
+    //piece = occupancy[bit];
+    for(int p = PAWN; p <= KING; p++) {
+        if(pieces_by_type_bb[p] & iBitMask(bit)) {
+            piece = p;
+            break;
+        }
+    }
+
+    if(piece != occupancy[bit]) {
+        ERROR("BitBoard::get() : boards not synced...");
     }
 
     return piece | color_offset;
@@ -187,35 +187,19 @@ void BitBoard::set(Index line, Index rank, OccupancyType type) {
     const U8 bit = 8*rank + line; //8*y + x == bit position in U64
 
     if(type == EMPTY) {
+        occupancy[bit] = EMPTY;
         U64 rmask = ~(iBitMask(bit));
-        pieces_bb[WHITE] &= rmask;
-        pieces_bb[BLACK] &= rmask;
-        pawns_bb &= rmask;
-        knights_bb &= rmask;
-        bishops_bb &= rmask;
-        rooks_bb &= rmask;
-        queens_bb &= rmask;
-        kings_bb &= rmask;
-    } else {
-        U64 amask = iBitMask(bit);
-        switch(type & MASK_PIECE) {
-            case PAWN:
-                pawns_bb |= amask; break;
-            case KNIGHT:
-                knights_bb |= amask; break;
-            case BISHOP:
-                bishops_bb |= amask; break;
-            case ROOK:
-                rooks_bb |= amask; break;
-            case QUEEN:
-                queens_bb |= amask; break;
-            case KING:
-                kings_bb |= amask; break;
-            default:
-                break;
+        pieces_by_color_bb[WHITE] &= rmask;
+        pieces_by_color_bb[BLACK] &= rmask;
+        for(int p = PAWN; p <= KING; p++) {
+            pieces_by_type_bb[p] &= rmask;
         }
+    } else {
+        occupancy[bit] = (type & MASK_PIECE);
+        U64 amask = iBitMask(bit);
+        pieces_by_type_bb[type & MASK_PIECE] |= amask;
         U8 color = (type & MASK_COLOR) >> 3;
-        pieces_bb[color] |= (C64(1) << bit);
+        pieces_by_color_bb[color] |= iBitMask(bit);
     }
 }
 

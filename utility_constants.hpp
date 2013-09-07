@@ -7,7 +7,7 @@ using namespace std;
 #include "lemon.hpp"
 
 static string COLORS[2] = {"White", "Black"};
-static char PIECE_SYMBOLS[15] = {' ', 'P', 'N', 'B', 'R', 'Q', 'K', '?', '?', 'p', 'n', 'b', 'r', 'q', 'k'};
+static char PIECE_SYMBOLS[14] = {'P', 'N', 'B', 'R', 'Q', 'K', ' ', '?', 'p', 'n', 'b', 'r', 'q', 'k'};
 static char CHESS_COORDS[BOARD_SIZE] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 
 

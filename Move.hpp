@@ -59,7 +59,7 @@ inline U32 moveGet(Move &m, const U32 mask, const U32 shift) {
 }
 
 string moveToStr(Move m) {
-    string ret;
+    string ret = "";
 
     U32 from = moveGet(m, FROM_MASK, FROM_SHIFT);
     U32 to = moveGet(m, TO_MASK, TO_SHIFT);
