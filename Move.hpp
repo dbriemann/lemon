@@ -21,7 +21,7 @@ typedef U32 Move;
 #define PROMOTION_MASK  0x0f000000 //4bit (24)
 #define EP_MASK         0x10000000 //1bit (28)
 #define CASTLE_MASK     0x20000000 //1bit (29)
-#define VALUE_MASK      0x40000000 //2bit (30)
+#define VALUE_MASK      0xC0000000 //2bit (30)
 
 #define FROM_SHIFT      0
 #define TO_SHIFT        8

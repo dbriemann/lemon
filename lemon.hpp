@@ -15,21 +15,20 @@ typedef uint64_t U64; typedef int64_t I64;
 typedef U8 Index;
 //typedef I8 Offset;
 #define C64(constantU64) constantU64##ULL
-#define iBitMask(i) (1ULL << i)
+#define iBitMask(i) (1ULL << (i))
 
 
 /*
  * Boad & Piece definitions
  */
 #define BOARD_SIZE                  8
-#define NO_EN_PASSENT_IDX           0x80
 #define CASTLE_SHORT_WHITE_TARGET   6
 #define CASTLE_SHORT_BLACK_TARGET   62
 #define CASTLE_LONG_WHITE_TARGET    2
 #define CASTLE_LONG_BLACK_TARGET    58
 #define MASK_COLOR                  0x8
 #define MASK_PIECE                  0x7
-#define FLIP(x) ((x+1)%2)
+#define FLIP(x) (((x)+1)%2)
 
 #define NONE 0
 
@@ -64,25 +63,29 @@ enum OccupancyType {
   southwest    south   southeast
  *
  */
-#define _SHIFT_N(x) (x << 8)
-#define _SHIFT_NN(x) (x << 16) //pawn double step
-#define _SHIFT_S(x) (x >> 8)
-#define _SHIFT_SS(x) (x >> 16) //pawn double step
-#define _SHIFT_W(x) (x >> 1)
-#define _SHIFT_E(x) (x << 1)
-#define _SHIFT_NE(x) (x << 9)
-#define _SHIFT_SE(x) (x >> 7)
-#define _SHIFT_SW(x) (x >> 9)
-#define _SHIFT_NW(x) (x << 7)
+#define _SHIFT_N(x) ((x) << 8)
+#define _SHIFT_NN(x) ((x) << 16) //pawn double step
+#define _SHIFT_S(x) ((x) >> 8)
+#define _SHIFT_SS(x) ((x) >> 16) //pawn double step
+#define _SHIFT_W(x) ((x) >> 1)
+#define _SHIFT_E(x) ((x) << 1)
+#define _SHIFT_NE(x) ((x) << 9)
+#define _SHIFT_SE(x) ((x) >> 7)
+#define _SHIFT_SW(x) ((x) >> 9)
+#define _SHIFT_NW(x) ((x) << 7)
 //knight's jumps
-#define _SHIFT_NNE(x) (x << 17)
-#define _SHIFT_NNW(x) (x << 15)
-#define _SHIFT_SSE(x) (x >> 15)
-#define _SHIFT_SSW(x) (x >> 17)
-#define _SHIFT_WNW(x) (x << 6)
-#define _SHIFT_WSW(x) (x >> 10)
-#define _SHIFT_ENE(x) (x << 10)
-#define _SHIFT_ESE(x) (x >> 6)
+#define _SHIFT_NNE(x) ((x) << 17)
+#define _SHIFT_NNW(x) ((x) << 15)
+#define _SHIFT_SSE(x) ((x) >> 15)
+#define _SHIFT_SSW(x) ((x) >> 17)
+#define _SHIFT_WNW(x) ((x) << 6)
+#define _SHIFT_WSW(x) ((x) >> 10)
+#define _SHIFT_ENE(x) ((x) << 10)
+#define _SHIFT_ESE(x) ((x) >> 6)
+
+static const int PAWN_MOVE_DIRECTIONS[2] = {8, -8};
+static const int PAWN_CAP_EAST_DIRECTIONS[2] = {9, -7};
+static const int PAWN_CAP_WEST_DIRECTIONS[2] = {7, -9};
 
 
 /*
