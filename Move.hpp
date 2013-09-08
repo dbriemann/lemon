@@ -39,7 +39,7 @@ static const U8 CASTLE_LONG_TARGET[2] = {2,58};
 #define EP_MASK         0x03000000 //2bit (24)
 #define CAPTURE_MASK    0x04000000 //1bit (26)
 #define CASTLE_MASK     0x08000000 //1bit (27)
-#define VALUE_MASK      0xF0000000  //4bit (28)
+#define VALUE_MASK      0xF0000000 //4bit (28)
 
 #define FROM_SHIFT      0
 #define TO_SHIFT        8
@@ -126,9 +126,8 @@ string moveToStr(Move m) {
             ret += "=";
             ret += PIECE_SYMBOLS[promo & MASK_PIECE];
         }
-
-        ret += "("; ret += intToString(value); ret += ")";
     }
+    ret += " ("; ret += intToString(value); ret += ")";
 
     return ret;
 }
