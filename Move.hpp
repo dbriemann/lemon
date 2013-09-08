@@ -13,62 +13,72 @@ typedef U32 Move;
 #define MOVE_PRE_EVAL_DEFAULT   1
 #define MOVE_PRE_EVAL_GOODCAP   2
 #define MOVE_PRE_EVAL_CASTLE    3
+#define MOVE_PRE_EVAL_PROMO     4
+#define MOVE_PRE_EVAL_PROMOCAP  5
+//TODO.. capture evals without conditionals in movegen..
 
-#define FROM_MASK       0x000000ff //8bit
-#define TO_MASK         0x0000ff00 //8bit (8)
-#define PIECE_MASK      0x000f0000 //4bit (16)
-#define CAPTURE_MASK    0x00f00000 //4bit (20)
-#define PROMOTION_MASK  0x0f000000 //4bit (24)
-#define EP_MASK         0x10000000 //1bit (28)
-#define CASTLE_MASK     0x20000000 //1bit (29)
-#define VALUE_MASK      0xC0000000 //2bit (30)
+#define EP_TYPE_NONE    0
+#define EP_TYPE_CAPTURE 1
+#define EP_TYPE_CREATE  2
+
+#define CAPTURE_YES 0x1
+#define CAPTURE_NO  0x0
+
+#define FROM_MASK       0x000000FF //8bit
+#define TO_MASK         0x0000FF00 //8bit (8)
+#define PIECE_MASK      0x000F0000 //4bit (16)
+#define PROMOTION_MASK  0x00F00000 //4bit (20)
+#define EP_MASK         0x03000000 //2bit (24)
+#define CAPTURE_MASK    0x04000000 //1bit (26)
+#define CASTLE_MASK     0x08000000 //1bit (27)
+#define VALUE_MASK      0xF0000000  //4bit (28)
 
 #define FROM_SHIFT      0
 #define TO_SHIFT        8
 #define PIECE_SHIFT     16
-#define CAPTURE_SHIFT   20
-#define PROMOTION_SHIFT 24
-#define EP_SHIFT        28
-#define CASTLE_SHIFT    29
-#define VALUE_SHIFT     30
+#define PROMOTION_SHIFT 20
+#define EP_SHIFT        24
+#define CAPTURE_SHIFT   26
+#define CASTLE_SHIFT    27
+#define VALUE_SHIFT     28
 
-inline Move moveCreate(U32 from, U32 to, U32 ptype, U32 captype, U32 promtype, U32 epflag, U32 castleflag, U32 value) {
+inline Move moveCreate(U32 from, U32 to, U32 ptype, U32 capflag, U32 promtype, U32 eptype, U32 castleflag, U32 value) {
     Move m = from;
     to <<= TO_SHIFT;
-    ptype <<= PIECE_SHIFT;
-    captype <<= CAPTURE_SHIFT;
+    ptype <<= PIECE_SHIFT;    
     promtype <<= PROMOTION_SHIFT;
-    epflag <<= EP_SHIFT;
+    eptype <<= EP_SHIFT;
+    capflag <<= CAPTURE_SHIFT;
     castleflag <<= CASTLE_SHIFT;
     value <<= VALUE_SHIFT;
 
-    m |= (to | ptype | captype | promtype | epflag | castleflag | value);
+    m |= (to | ptype | promtype | eptype | capflag | castleflag | value);
 
     return m;
 }
 
 
-inline void moveSet(Move &m, const U32 mask, const U32 shift, U32 bits) {
+inline void moveSetFeature(Move &m, const U32 mask, const U32 shift, U32 bits) {
     m &= ~mask;
     bits <<= shift;
     m |= bits;
 }
 
-inline U32 moveGet(Move &m, const U32 mask, const U32 shift) {
+inline U32 moveGetFeature(Move &m, const U32 mask, const U32 shift) {
     return (m & mask) >> shift;
 }
 
 string moveToStr(Move m) {
     string ret = "";
 
-    U32 from = moveGet(m, FROM_MASK, FROM_SHIFT);
-    U32 to = moveGet(m, TO_MASK, TO_SHIFT);
-    U32 ptype = moveGet(m, PIECE_MASK, PIECE_SHIFT);
-    U32 cap = moveGet(m, CAPTURE_MASK, CAPTURE_SHIFT);
-    U32 promo = moveGet(m, PROMOTION_MASK, PROMOTION_SHIFT);
-    U32 epflag = moveGet(m, EP_MASK, EP_SHIFT);
-    U32 castle = moveGet(m, CASTLE_MASK, CASTLE_SHIFT);
-    U32 value = moveGet(m, VALUE_MASK, VALUE_SHIFT);
+    U32 from = moveGetFeature(m, FROM_MASK, FROM_SHIFT);
+    U32 to = moveGetFeature(m, TO_MASK, TO_SHIFT);
+    U32 ptype = moveGetFeature(m, PIECE_MASK, PIECE_SHIFT);
+    U32 cap = moveGetFeature(m, CAPTURE_MASK, CAPTURE_SHIFT);
+    U32 promo = moveGetFeature(m, PROMOTION_MASK, PROMOTION_SHIFT);
+    U32 epflag = moveGetFeature(m, EP_MASK, EP_SHIFT);
+    U32 castle = moveGetFeature(m, CASTLE_MASK, CASTLE_SHIFT);
+    U32 value = moveGetFeature(m, VALUE_MASK, VALUE_SHIFT);
 
 
     if(castle) {
@@ -89,12 +99,10 @@ string moveToStr(Move m) {
         ret += xx;
         ret += intToString(yy);
         //x if capture
-        if(cap != EMPTY) {
+        if(cap) {
             ret += "x";
-            //target piece if not pawn
-            if(cap != PAWN) {
-                ret += PIECE_SYMBOLS[cap & MASK_PIECE];
-            }
+        } else {
+            ret += "-";
         }
         //to
         xx = CHESS_COORDS[FILE(to)];
@@ -102,8 +110,8 @@ string moveToStr(Move m) {
         ret += xx;
         ret += intToString(yy);
 
-        if(epflag) {
-            ret+="ep";
+        if(epflag == EP_TYPE_CAPTURE) {
+            ret+=" ep";
         }
 
         if(promo != EMPTY) {

@@ -12,7 +12,7 @@ typedef uint8_t U8; typedef int8_t I8;
 typedef uint16_t U16; typedef int16_t I16;
 typedef uint32_t U32; typedef int32_t I32;
 typedef uint64_t U64; typedef int64_t I64;
-typedef U8 Index;
+typedef U8 Square;
 //typedef I8 Offset;
 #define C64(constantU64) constantU64##ULL
 #define iBitMask(i) (1ULL << (i))
@@ -108,6 +108,8 @@ static const int PAWN_CAP_WEST_DIRECTIONS[2] = {7, -9};
 #define RANK_6 0x0000FF0000000000ULL
 #define RANK_7 0x00FF000000000000ULL
 #define RANK_8 0xFF00000000000000ULL
+
+#define EP_RANKS 0x0000FF0000FF0000ULL
 
 
 #define SQ(f,r) (((r) << 3) | (f))

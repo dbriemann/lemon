@@ -29,7 +29,7 @@ struct BitBoard {
     U8 player;
     bool castle_short[2];
     bool castle_long[2];
-    Index en_passent_index;
+    Square en_passent_sq;
     U8 draw_counter;
     U8 move_number;
 
@@ -45,8 +45,8 @@ struct BitBoard {
      * Utility methods
      */
     inline void zeroAll();
-    U8 get(Index line, Index rank) const;
-    void set(Index line, Index rank, OccupancyType type);
+    U8 get(Square line, Square rank) const;
+    void set(Square line, Square rank, OccupancyType type);
     void setFENPosition(string fen);
     string getFENCode() const;
     void setStartingPosition();
@@ -71,7 +71,7 @@ BitBoard::BitBoard() {
     zeroAll(); //bitboards
     player = WHITE;
     castle_long[WHITE] = castle_long[BLACK] = castle_short[WHITE] = castle_short[BLACK] = true;
-    en_passent_index = NONE;
+    en_passent_sq = NONE;
     draw_counter = 0;
     move_number = 1;
 }
@@ -94,7 +94,7 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
     const U64 unocc_bb = ~(pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK]);
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
     Move m = 0;
-    U32 from, to, cap;
+    U32 from, to;
 
     //for every knight of player's color
     U64 play_knights_bb = pieces_by_type_bb[KNIGHT] & pieces_by_color_bb[player];
@@ -110,7 +110,7 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
             //extract target square
             to = bitscanfwd(bb);
 
-            m = moveCreate(from, to, KNIGHT, EMPTY, EMPTY, NONE, NONE, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
+            m = moveCreate(from, to, KNIGHT, CAPTURE_NO, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
             mlist.put(m);
 
             bb &= ~iBitMask(to);
@@ -122,10 +122,9 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
         while(bb) {
             //extract target square
             to = bitscanfwd(bb);
-            cap = occupancy[to];
             //TODO check capture goodness
 
-            m = moveCreate(from, to, KNIGHT, cap, EMPTY, NONE, NONE, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
+            m = moveCreate(from, to, KNIGHT, CAPTURE_YES, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
             mlist.put(m);
 
             bb &= ~iBitMask(to);
@@ -142,24 +141,29 @@ inline
 void BitBoard::genPawnMoves(MoveList &mlist) {
     const U64 unocc_bb = ~(pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK]);
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
+    const U64 own_bb = pieces_by_color_bb[player];
     Move m = 0;
-    U32 from, to, cap;
+    U32 from, to;
     register U64 bb;
-    U64 two_steppers, capture_west_targets, capture_east_targets;
+    U64 two_steppers, capture_west_targets, capture_east_targets, ep_takers, promo_rank;
+    U64 ep_target = iBitMask(en_passent_sq) & EP_RANKS;
 
     //TODO remove if white/black conditionals somehow
+    //TODO promotions..efficient?
+
     //one step advances
-    bb = pieces_by_type_bb[PAWN] & pieces_by_color_bb[player];
+    bb = pieces_by_type_bb[PAWN] & pieces_by_color_bb[player];   
 
-    //TODO insert en passents as capture targets? or do seperately
-    //TODO promotions..
-
-    if(player == WHITE) {        
+    if(player == WHITE) {
+        promo_rank = RANK_8;
+        ep_takers = (_SHIFT_SE(ep_target) & (own_bb & ~FILE_A)) | (_SHIFT_SW(ep_target) & (own_bb & ~FILE_H));
         capture_east_targets = _SHIFT_NE(bb) & (opp_bb & ~FILE_A);
         capture_west_targets = _SHIFT_NW(bb) & (opp_bb & ~FILE_H);
         bb = _SHIFT_N(bb) & unocc_bb;
         two_steppers = _SHIFT_N(bb & RANK_3) & unocc_bb; //only white pawns that are on rank 3 AFTER one step could a do a double step
     } else {
+        promo_rank = RANK_1;
+        ep_takers = (_SHIFT_NE(ep_target) & (own_bb & ~FILE_A)) | (_SHIFT_NW(ep_target) & (own_bb & ~FILE_H));
         capture_east_targets = _SHIFT_SE(bb) & (opp_bb & ~FILE_A);
         capture_west_targets = _SHIFT_SW(bb) & (opp_bb & ~FILE_H);
         bb = _SHIFT_S(bb) & unocc_bb;
@@ -171,8 +175,20 @@ void BitBoard::genPawnMoves(MoveList &mlist) {
         to = bitscanfwd(bb);
         from = (int)to - PAWN_MOVE_DIRECTIONS[player];
 
-        m = moveCreate(from, to, PAWN, EMPTY, EMPTY, NONE, NONE, MOVE_PRE_EVAL_DEFAULT);
-        mlist.put(m);
+        //check promotion
+        if(iBitMask(to) & promo_rank) {
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, QUEEN, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMO);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, ROOK, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMO);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, BISHOP, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMO);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, KNIGHT, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMO);
+            mlist.put(m);
+        } else {
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_DEFAULT);
+            mlist.put(m);
+        }
 
         bb &= ~iBitMask(to);
     }
@@ -184,42 +200,82 @@ void BitBoard::genPawnMoves(MoveList &mlist) {
         to = bitscanfwd(bb);
         from = (int)to - 2*PAWN_MOVE_DIRECTIONS[player];
 
-        m = moveCreate(from, to, PAWN, EMPTY, EMPTY, NONE, NONE, MOVE_PRE_EVAL_DEFAULT);
+        m = moveCreate(from, to, PAWN, CAPTURE_NO, EMPTY, EP_TYPE_CREATE, NONE, MOVE_PRE_EVAL_DEFAULT);
         mlist.put(m);
 
         bb &= ~iBitMask(to);
     }
 
     //extract captures
+    //east
     bb = capture_east_targets;
     while(bb) {
         to = bitscanfwd(bb);
         from = (int)to - PAWN_CAP_EAST_DIRECTIONS[player];
-        cap = occupancy[to];
+        //TODO check capture goodness
 
-        m = moveCreate(from, to, PAWN, cap, EMPTY, NONE, NONE, MOVE_PRE_EVAL_GOODCAP);
-        mlist.put(m);
+        //check promotion
+        if(iBitMask(to) & promo_rank) {
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, QUEEN, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, ROOK, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, BISHOP, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, KNIGHT, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            mlist.put(m);
+        } else {
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_GOODCAP);
+            mlist.put(m);
+        }
 
         bb &= ~iBitMask(to);
     }
 
+    //west
     bb = capture_west_targets;
     while(bb) {
         to = bitscanfwd(bb);
         from = (int)to - PAWN_CAP_WEST_DIRECTIONS[player];
-        cap = occupancy[to];
+        //TODO check capture goodness
 
-        m = moveCreate(from, to, PAWN, cap, EMPTY, NONE, NONE, MOVE_PRE_EVAL_GOODCAP);
-        mlist.put(m);
+        //check promotion
+        if(iBitMask(to) & promo_rank) {
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, QUEEN, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, ROOK, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, BISHOP, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            mlist.put(m);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, KNIGHT, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            mlist.put(m);
+        } else {
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_GOODCAP);
+            mlist.put(m);
+        }
 
         bb &= ~iBitMask(to);
+    }
+
+    //if there is a current ep. square check if pawns can capture there
+    if(en_passent_sq) {
+        bb = ep_takers;
+
+        while(bb) {
+            from = bitscanfwd(bb);
+
+            m = moveCreate(from, en_passent_sq, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_CAPTURE, NONE, MOVE_PRE_EVAL_GOODCAP);
+            mlist.put(m);
+
+            bb &= ~iBitMask(from);
+        }
     }
 }
 
 //inefficient
 //used only for utility functionality like extracting the FEN string
-U8 BitBoard::get(Index line, Index rank) const {
-    const Index bit = SQ(line,rank);//8*rank + line;
+U8 BitBoard::get(Square line, Square rank) const {
+    const Square bit = SQ(line,rank);//8*rank + line;
     U8 color_offset = 0;
     U8 piece = EMPTY;
 
@@ -245,7 +301,7 @@ U8 BitBoard::get(Index line, Index rank) const {
 }
 
 inline
-void BitBoard::set(Index line, Index rank, OccupancyType type) {
+void BitBoard::set(Square line, Square rank, OccupancyType type) {
     const U8 bit = 8*rank + line; //8*y + x == bit position in U64
 
     if(type == EMPTY) {
@@ -270,8 +326,8 @@ void BitBoard::setStartingPosition() {
 }
 
 void BitBoard::setFENPosition(string fen) {
-    Index x = 0;
-    Index y = BOARD_SIZE - 1;
+    Square x = 0;
+    Square y = BOARD_SIZE - 1;
     istringstream iss(fen);
     zeroAll();
 
@@ -386,13 +442,13 @@ void BitBoard::setFENPosition(string fen) {
 
         if(ep == "-") {
             //no en passent
-            en_passent_index = NONE;
+            en_passent_sq = NONE;
         } else {
             for(int i = 0; i < ep.size(); i+=2) {
                 if(ep[i] >= 'a' && ep[i] <= 'h' && ep[i+1] >= '1' && ep[i+1] <= '8') {
                     int x = ep[i] - 'a';
                     int y = ep[i+1] - '1';
-                    en_passent_index = SQ(x,y);
+                    en_passent_sq = SQ(x,y);
                 } else {
                     string err = "FEN CODE CORRUPTED (EN PASSENT ->";
                     err += ep; err += ")";
@@ -516,9 +572,9 @@ string BitBoard::getFENCode() const {
     fen += " ";
 
     //en passent
-    if(en_passent_index != NONE) {
-        char xx = CHESS_COORDS[en_passent_index % 8];
-        Index yy = (en_passent_index / 8) + 1;
+    if(en_passent_sq != NONE) {
+        char xx = CHESS_COORDS[FILE(en_passent_sq)];
+        Square yy = RANK(en_passent_sq) + 1;
         fen += xx;
         fen += intToString(yy);
     } else {
@@ -576,9 +632,9 @@ void BitBoard::print() const {
     cout << endl;
 
     cout << "   En passent field: ";
-    if(en_passent_index != NONE) {
-        char xx = CHESS_COORDS[en_passent_index % 8];
-        Index yy = (en_passent_index / 8) + 1;
+    if(en_passent_sq != NONE) {
+        char xx = CHESS_COORDS[FILE(en_passent_sq)];
+        Square yy = RANK(en_passent_sq) + 1;
         cout << xx << intToString(yy) << endl;
     } else {
         cout << "-" << endl;
