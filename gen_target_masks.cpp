@@ -74,11 +74,39 @@ void genKnightsTargets() {
     cout << endl << "};" << endl;
 }
 
+void genKingTargets() {
+    cout << "static const U64 KING_TARGET_BBS[64] = {";
+    for(int i = 0; i < 64; i++) {
+        if(i >= 1) {
+            cout << ", ";
+        }
+        if(i % 8 == 0) {
+            cout << endl << "    ";
+        }
+        U64 pos = iBitMask(i);
+        U64 targets = C64(0);
+
+        targets |= (_SHIFT_N(pos) & ~RANK_1);
+        targets |= (_SHIFT_S(pos) & ~RANK_8);
+        targets |= (_SHIFT_W(pos) & ~FILE_H);
+        targets |= (_SHIFT_E(pos) & ~FILE_A);
+        targets |= (_SHIFT_NW(pos) & ~FILE_H & ~RANK_1);
+        targets |= (_SHIFT_NE(pos) & ~FILE_A & ~RANK_1);
+        targets |= (_SHIFT_SW(pos) & ~FILE_H & ~RANK_8);
+        targets |= (_SHIFT_SE(pos) & ~FILE_A & ~RANK_8);
+
+        cout << "0x" << hex << targets << "ULL";
+        //PRINTBB(targets, "KING TARGETS");
+    }
+
+    cout << endl << "};" << endl;
+}
 
 
 int main() {
 
-    genKnightsTargets();
+    //genKnightsTargets();
+    genKingTargets();
 
     return 0;
 }

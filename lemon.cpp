@@ -23,6 +23,7 @@ int main() {
     MoveList mlist;
     bboard.genKnightMoves(mlist);
     bboard.genPawnMoves(mlist);
+    bboard.genKingMoves(mlist);
 
     for(int i = 0; i < mlist.size; i++) {
         cout << moveToStr(mlist.moves[i]) << endl;

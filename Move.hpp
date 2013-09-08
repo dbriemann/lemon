@@ -24,6 +24,14 @@ typedef U32 Move;
 #define CAPTURE_YES 0x1
 #define CAPTURE_NO  0x0
 
+#define CASTLE_YES  0x1
+#define CASTLE_NO   0x0
+
+static const U64 CASTLE_SHORT_PATH[2] = {0x00000060, 0x60000000};
+static const U64 CASTLE_LONG_PATH[2] = {0x0000000E, 0xE0000000};
+static const U8 CASTLE_SHORT_TARGET[2] = {6,62};
+static const U8 CASTLE_LONG_TARGET[2] = {2,58};
+
 #define FROM_MASK       0x000000FF //8bit
 #define TO_MASK         0x0000FF00 //8bit (8)
 #define PIECE_MASK      0x000F0000 //4bit (16)
@@ -83,9 +91,9 @@ string moveToStr(Move m) {
 
     if(castle) {
         //which type of castling
-        if(to == CASTLE_SHORT_WHITE_TARGET || to == CASTLE_SHORT_BLACK_TARGET) {
+        if(to == CASTLE_SHORT_TARGET[WHITE] || to == CASTLE_SHORT_TARGET[BLACK]) {
             ret = "0-0";
-        } else if(to == CASTLE_LONG_WHITE_TARGET || to == CASTLE_LONG_BLACK_TARGET) {
+        } else if(to == CASTLE_LONG_TARGET[WHITE] || to == CASTLE_LONG_TARGET[BLACK]) {
             ret = "0-0-0";
         }
     } else {

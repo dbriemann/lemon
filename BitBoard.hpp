@@ -23,7 +23,7 @@ struct BitBoard {
      * Arrays to help in certain situation
      */
     U8 occupancy[64];
-    //U8 kings[2];
+    U8 kings[2];
 
     //wrap all following into one U32?
     U8 player;
@@ -57,6 +57,7 @@ struct BitBoard {
      */
     inline void genKnightMoves(MoveList &mlist);
     inline void genPawnMoves(MoveList &mlist);
+    inline void genKingMoves(MoveList &mlist);
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -71,6 +72,7 @@ BitBoard::BitBoard() {
     zeroAll(); //bitboards
     player = WHITE;
     castle_long[WHITE] = castle_long[BLACK] = castle_short[WHITE] = castle_short[BLACK] = true;
+    kings[WHITE] = kings[BLACK] = 0;
     en_passent_sq = NONE;
     draw_counter = 0;
     move_number = 1;
@@ -85,6 +87,52 @@ void BitBoard::zeroAll() {
     }
     for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
         occupancy[i] = EMPTY;
+    }
+}
+
+inline
+void BitBoard::genKingMoves(MoveList &mlist) {
+    register U64 bb;
+    const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
+    const U64 unocc_bb = ~occ_bb;
+    const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
+    Move m = 0;
+    U32 from, to;
+
+    from = kings[player];
+    bb = KING_TARGET_BBS[from] & unocc_bb;
+    //normal moves
+    while(bb) {
+        to = bitscanfwd(bb);
+
+        m = moveCreate(from, to, KING, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT);
+        mlist.put(m);
+
+        bb &= ~iBitMask(to);
+    }
+
+    bb = KING_TARGET_BBS[from] & opp_bb;
+    //captures
+    while(bb) {
+        to = bitscanfwd(bb);
+
+        m = moveCreate(from, to, KING, CAPTURE_YES, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT);
+        mlist.put(m);
+
+        bb &= ~iBitMask(to);
+    }
+
+    //castling
+    if(castle_short[player] && !(occ_bb & CASTLE_SHORT_PATH[player])) {
+        //castling short is possible
+        m = moveCreate(from, CASTLE_SHORT_TARGET[player], KING, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_YES, MOVE_PRE_EVAL_CASTLE);
+        mlist.put(m);
+    }
+
+    if(castle_long[player] && !(occ_bb & CASTLE_LONG_PATH[player])) {
+        //castling long is possible
+        m = moveCreate(from, CASTLE_LONG_TARGET[player], KING, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_YES, MOVE_PRE_EVAL_CASTLE);
+        mlist.put(m);
     }
 }
 
@@ -110,7 +158,7 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
             //extract target square
             to = bitscanfwd(bb);
 
-            m = moveCreate(from, to, KNIGHT, CAPTURE_NO, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
+            m = moveCreate(from, to, KNIGHT, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
             mlist.put(m);
 
             bb &= ~iBitMask(to);
@@ -124,7 +172,7 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
             to = bitscanfwd(bb);
             //TODO check capture goodness
 
-            m = moveCreate(from, to, KNIGHT, CAPTURE_YES, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
+            m = moveCreate(from, to, KNIGHT, CAPTURE_YES, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
             mlist.put(m);
 
             bb &= ~iBitMask(to);
@@ -132,9 +180,6 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
 
         play_knights_bb &= ~iBitMask(from);
     }
-
-
-
 }
 
 inline
@@ -177,16 +222,16 @@ void BitBoard::genPawnMoves(MoveList &mlist) {
 
         //check promotion
         if(iBitMask(to) & promo_rank) {
-            m = moveCreate(from, to, PAWN, CAPTURE_NO, QUEEN, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMO);
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, QUEEN, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMO);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_NO, ROOK, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMO);
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, ROOK, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMO);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_NO, BISHOP, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMO);
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, BISHOP, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMO);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_NO, KNIGHT, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMO);
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, KNIGHT, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMO);
             mlist.put(m);
         } else {
-            m = moveCreate(from, to, PAWN, CAPTURE_NO, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_DEFAULT);
+            m = moveCreate(from, to, PAWN, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT);
             mlist.put(m);
         }
 
@@ -200,7 +245,7 @@ void BitBoard::genPawnMoves(MoveList &mlist) {
         to = bitscanfwd(bb);
         from = (int)to - 2*PAWN_MOVE_DIRECTIONS[player];
 
-        m = moveCreate(from, to, PAWN, CAPTURE_NO, EMPTY, EP_TYPE_CREATE, NONE, MOVE_PRE_EVAL_DEFAULT);
+        m = moveCreate(from, to, PAWN, CAPTURE_NO, EMPTY, EP_TYPE_CREATE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT);
         mlist.put(m);
 
         bb &= ~iBitMask(to);
@@ -216,16 +261,16 @@ void BitBoard::genPawnMoves(MoveList &mlist) {
 
         //check promotion
         if(iBitMask(to) & promo_rank) {
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, QUEEN, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, QUEEN, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMOCAP);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, ROOK, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, ROOK, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMOCAP);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, BISHOP, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, BISHOP, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMOCAP);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, KNIGHT, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, KNIGHT, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMOCAP);
             mlist.put(m);
         } else {
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_GOODCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_GOODCAP);
             mlist.put(m);
         }
 
@@ -241,16 +286,16 @@ void BitBoard::genPawnMoves(MoveList &mlist) {
 
         //check promotion
         if(iBitMask(to) & promo_rank) {
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, QUEEN, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, QUEEN, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMOCAP);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, ROOK, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, ROOK, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMOCAP);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, BISHOP, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, BISHOP, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMOCAP);
             mlist.put(m);
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, KNIGHT, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_PROMOCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, KNIGHT, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_PROMOCAP);
             mlist.put(m);
         } else {
-            m = moveCreate(from, to, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_NONE, NONE, MOVE_PRE_EVAL_GOODCAP);
+            m = moveCreate(from, to, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_GOODCAP);
             mlist.put(m);
         }
 
@@ -264,7 +309,7 @@ void BitBoard::genPawnMoves(MoveList &mlist) {
         while(bb) {
             from = bitscanfwd(bb);
 
-            m = moveCreate(from, en_passent_sq, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_CAPTURE, NONE, MOVE_PRE_EVAL_GOODCAP);
+            m = moveCreate(from, en_passent_sq, PAWN, CAPTURE_YES, EMPTY, EP_TYPE_CAPTURE, CASTLE_NO, MOVE_PRE_EVAL_GOODCAP);
             mlist.put(m);
 
             bb &= ~iBitMask(from);
@@ -285,7 +330,8 @@ U8 BitBoard::get(Square line, Square rank) const {
 
 
     //TODO
-    //piece = occupancy[bit];
+    piece = occupancy[bit];
+    /*
     for(int p = PAWN; p <= KING; p++) {
         if(pieces_by_type_bb[p] & iBitMask(bit)) {
             piece = p;
@@ -296,6 +342,7 @@ U8 BitBoard::get(Square line, Square rank) const {
     if(piece != occupancy[bit]) {
         ERROR("BitBoard::get() : boards not synced...");
     }
+    */
 
     return piece | color_offset;
 }
@@ -318,6 +365,10 @@ void BitBoard::set(Square line, Square rank, OccupancyType type) {
         pieces_by_type_bb[type & MASK_PIECE] |= amask;
         U8 color = (type & MASK_COLOR) >> 3;
         pieces_by_color_bb[color] |= iBitMask(bit);
+
+        if((type & MASK_PIECE) == KING) {
+            kings[(type & MASK_COLOR) >> 3] = bit;
+        }
     }
 }
 
