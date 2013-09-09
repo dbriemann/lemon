@@ -623,7 +623,7 @@ string BitBoard::getFENCode() const {
     fen += " ";
 
     //en passent
-    if(en_passent_sq != NONE) {
+    if(en_passent_sq != NONE) {        
         char xx = CHESS_COORDS[FILE(en_passent_sq)];
         Square yy = RANK(en_passent_sq) + 1;
         fen += xx;
