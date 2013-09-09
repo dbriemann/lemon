@@ -58,6 +58,10 @@ struct BitBoard {
     inline void genKnightMoves(MoveList &mlist);
     inline void genPawnMoves(MoveList &mlist);
     inline void genKingMoves(MoveList &mlist);
+    inline void genRookMoves(MoveList &mlist);
+
+    inline U64 genRankAttacks(const U64 occ, const U8 sq);
+    inline U64 genFileAttacks(U64 occ, const U8 sq);
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -77,7 +81,6 @@ BitBoard::BitBoard() {
     draw_counter = 0;
     move_number = 1;
 }
-
 
 inline
 void BitBoard::zeroAll() {
@@ -133,6 +136,50 @@ void BitBoard::genKingMoves(MoveList &mlist) {
         //castling long is possible
         m = moveCreate(from, CASTLE_LONG_TARGET[player], KING, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_YES, MOVE_PRE_EVAL_CASTLE);
         mlist.put(m);
+    }
+}
+
+inline U64 BitBoard::genRankAttacks(const U64 occ, const U8 sq) {
+    //TODO.. U32??
+    U32 f = sq & 7;
+    U32 r = sq & ~7; //== rank*8
+    U32 o = (U32)(occ >> (r+1)) & 63;
+    return ((U64) RANK_ATTACK_BBS[f][o]) << r;
+}
+
+inline U64 BitBoard::genFileAttacks(U64 occ, const U8 sq) {
+    //TODO.. U32??
+    U32 f = sq & 7;
+    PRINTBB(occ, "OCC");
+    occ = FILE_A & (occ >> f);
+    PRINTBB(occ, "OCC");
+    PRINTBB((MAGIC_MULT_NO1 * occ), "MAGIC*OCC");
+    U32 o = (MAGIC_MULT_NO1 * occ) >> 58;
+    PRINTBB(o, "o");
+    cout << "RANK: " << RANK(sq) << endl;
+    cout << "FILE: " << (sq & 7) << endl;
+    PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o], "ATTACK");
+    PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o] << f, "ATTACK2");
+    return (FILE_ATTACK_BBS[RANK(sq)][o]) << f;
+}
+
+inline void BitBoard::genRookMoves(MoveList &mlist) {
+    register U64 bb;
+    const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
+    const U64 own_bb = pieces_by_color_bb[player];
+    U64 play_rooks_bb = pieces_by_type_bb[ROOK] & own_bb;
+    U32 from;
+
+    while(play_rooks_bb) {
+        from = bitscanfwd(play_rooks_bb);
+
+        bb = genRankAttacks(occ_bb, from);
+        bb |= genFileAttacks(occ_bb, from);
+        bb &= ~own_bb;
+
+        PRINTBB(bb, "ROOK");
+
+        play_rooks_bb &= ~iBitMask(from);
     }
 }
 
