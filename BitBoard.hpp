@@ -150,16 +150,16 @@ inline U64 BitBoard::genRankAttacks(const U64 occ, const U8 sq) {
 inline U64 BitBoard::genFileAttacks(U64 occ, const U8 sq) {
     //TODO.. U32??
     U32 f = sq & 7;
-    PRINTBB(occ, "OCC");
+    //PRINTBB(occ, "OCC");
     occ = FILE_A & (occ >> f);
-    PRINTBB(occ, "OCC");
-    PRINTBB((MAGIC_MULT_NO1 * occ), "MAGIC*OCC");
+    //PRINTBB(occ, "OCC");
+    //PRINTBB((MAGIC_MULT_NO1 * occ), "MAGIC*OCC");
     U32 o = (MAGIC_MULT_NO1 * occ) >> 58;
-    PRINTBB(o, "o");
-    cout << "RANK: " << RANK(sq) << endl;
-    cout << "FILE: " << (sq & 7) << endl;
-    PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o], "ATTACK");
-    PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o] << f, "ATTACK2");
+    //PRINTBB(o, "o");
+    //cout << "RANK: " << RANK(sq) << endl;
+    //cout << "FILE: " << (sq & 7) << endl;
+    //PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o], "ATTACK");
+    //PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o] << f, "ATTACK2");
     return (FILE_ATTACK_BBS[RANK(sq)][o]) << f;
 }
 

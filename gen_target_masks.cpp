@@ -171,7 +171,7 @@ void genBlockedFirstFileMasks() {
             }
             U64 result = 0;
             U64 wanderer = piece_at;
-            U64 innerocc = (U64)occ;//(U64)reverse(occ);
+            U64 innerocc = (U64)(reverse(occ) >> 2);
 
             U64 occu = 0;
             while(innerocc) {
