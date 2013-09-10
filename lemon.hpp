@@ -24,7 +24,7 @@ typedef U8 Square;
 #define BOARD_SIZE                  8
 #define MASK_COLOR                  0x8
 #define MASK_PIECE                  0x7
-#define FLIP(x) (((x)+1)%2)
+#define FLIP(x) (((x)+1)&1)
 
 #define NONE 0
 

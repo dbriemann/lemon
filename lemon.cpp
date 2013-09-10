@@ -26,16 +26,15 @@ int main() {
     //bboard.player = BLACK;
 
     MoveList mlist;
-    bboard.genKnightMoves(mlist);
-    bboard.genPawnMoves(mlist);
-    bboard.genKingMoves(mlist);
-    bboard.genRookMoves(mlist);
-    bboard.genBishopMoves(mlist);
-    bboard.genQueenMoves(mlist);
+    bboard.genPseudoLegalMoves(mlist);
 
     for(int i = 0; i < mlist.size; i++) {
-        cout << moveToStr(mlist.moves[i]) << endl;
+        cout << moveToStr(mlist.moves[i]) << ", ";
     }
+    cout << endl;
+
+    bboard.makeMoveIfLegal(mlist.moves[8]);
+    bboard.print();
 
     return 0;
 }

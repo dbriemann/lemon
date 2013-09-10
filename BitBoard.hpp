@@ -55,6 +55,7 @@ struct BitBoard {
     /*
      * Move generation methods
      */
+    void genPseudoLegalMoves(MoveList &mlist);
     inline void genKnightMoves(MoveList &mlist);
     inline void genPawnMoves(MoveList &mlist);
     inline void genKingMoves(MoveList &mlist);
@@ -66,6 +67,11 @@ struct BitBoard {
     inline U64 genFileAttacks(U64 occ, const U8 sq);
     inline U64 genDiagAttacks(U64 occ, const U8 sq);
     inline U64 genAntiDiagAttacks(U64 occ, const U8 sq);
+
+    /*
+     * Move execution methods
+     */
+    bool makeMoveIfLegal(Move m);
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -95,6 +101,70 @@ void BitBoard::zeroAll() {
     for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
         occupancy[i] = EMPTY;
     }
+}
+
+bool BitBoard::makeMoveIfLegal(Move m) {
+    bool success = true;
+    const U8 opponent = FLIP(player);
+    cout << "makeMoveIfLegal(): " << moveToStr(m) << endl;
+    U32 from = moveGetFeature(m, FROM_MASK, FROM_SHIFT);
+    U32 to = moveGetFeature(m, TO_MASK, TO_SHIFT);
+    U32 ptype = moveGetFeature(m, PIECE_MASK, PIECE_SHIFT);
+    U32 capflag = moveGetFeature(m, CAPTURE_MASK, CAPTURE_SHIFT);
+
+    //remove "from"-piece from bitboards
+    pieces_by_color_bb[player] &= ~iBitMask(from);
+    pieces_by_type_bb[ptype] &= ~iBitMask(from);
+    //swap positions on helper board
+    swap(occupancy[from], occupancy[to]);
+
+    //handle capture case
+    if(capflag) {
+        //remove opponent piece
+        pieces_by_color_bb[opponent] &= ~iBitMask(to);
+        pieces_by_type_bb[occupancy[from]] &= ~iBitMask(to); //already swapped..from<->to
+
+        //TODO reset draw counter..
+    }
+
+    //add piece to "to"-square
+    pieces_by_color_bb[player] |= iBitMask(to);
+    pieces_by_type_bb[ptype] |= iBitMask(to);
+
+    //TODO GO ON HERE
+
+
+
+
+    //handle specific pieces
+
+
+
+    //do all alterations of the game state only if
+    //the move was proven to be legal
+
+    //color flip
+    //draw reset
+    //move number
+
+    if(success) {
+        //delete from helper board
+        occupancy[from] = EMPTY;
+    }
+
+
+    return success;
+}
+
+//TODO: merge all movegen functions into one big?
+//or inline or #define stuff
+void BitBoard::genPseudoLegalMoves(MoveList &mlist) {
+    genQueenMoves(mlist);
+    genRookMoves(mlist);
+    genBishopMoves(mlist);
+    genKnightMoves(mlist);
+    genPawnMoves(mlist);
+    genKingMoves(mlist);
 }
 
 inline
@@ -500,9 +570,9 @@ U8 BitBoard::get(Square line, Square rank) const {
     }
 
 
-    //TODO
+    //TODO remove debug overhead
     piece = occupancy[bit];
-    /*
+
     for(int p = PAWN; p <= KING; p++) {
         if(pieces_by_type_bb[p] & iBitMask(bit)) {
             piece = p;
@@ -513,7 +583,7 @@ U8 BitBoard::get(Square line, Square rank) const {
     if(piece != occupancy[bit]) {
         ERROR("BitBoard::get() : boards not synced...");
     }
-    */
+
 
     return piece | color_offset;
 }
