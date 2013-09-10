@@ -59,10 +59,13 @@ struct BitBoard {
     inline void genPawnMoves(MoveList &mlist);
     inline void genKingMoves(MoveList &mlist);
     inline void genRookMoves(MoveList &mlist);
+    inline void genBishopMoves(MoveList &mlist);
+    inline void genQueenMoves(MoveList &mlist);
 
     inline U64 genRankAttacks(const U64 occ, const U8 sq);
     inline U64 genFileAttacks(U64 occ, const U8 sq);
     inline U64 genDiagAttacks(U64 occ, const U8 sq);
+    inline U64 genAntiDiagAttacks(U64 occ, const U8 sq);
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -151,23 +154,113 @@ inline U64 BitBoard::genRankAttacks(const U64 occ, const U8 sq) {
 inline U64 BitBoard::genFileAttacks(U64 occ, const U8 sq) {
     //TODO.. U32??
     U32 f = sq & 7;
-    //PRINTBB(occ, "OCC");
     occ = FILE_A & (occ >> f);
-    //PRINTBB(occ, "OCC");
-    //PRINTBB((MAGIC_MULT_NO1 * occ), "MAGIC*OCC");
-    U32 o = (MAGIC_MULT_NO1 * occ) >> 58;
-    //PRINTBB(o, "o");
-    //cout << "RANK: " << RANK(sq) << endl;
-    //cout << "FILE: " << (sq & 7) << endl;
-    //PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o], "ATTACK");
-    //PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o] << f, "ATTACK2");
+    U32 o = (MAGIC_DIAGONAL_C2H7 * occ) >> 58;
     return FILE_ATTACK_BBS[RANK(sq)][o] << f;
 }
 
-inline U64 genDiagAttacks(U64 occ, const U8 sq) {
-   //const U64 bFile = C64(0x0202020202020202);
-   //occ = (diagonalMaskEx[sq] & occ) * bFile >> 58;
-   //return diagonalMaskEx[sq] & fillUpAttacks[sq&7][occ];
+inline U64 BitBoard::genDiagAttacks(U64 occ, const U8 sq) {
+    occ &= A1H8_DIAGONAL_TARGET_BBS[sq];
+    occ = (occ * FILE_B) >> 58;
+    return A1H8_DIAGONAL_TARGET_BBS[sq] & FILLUP_ATTACK_BBS[sq&7][occ];
+}
+
+inline U64 BitBoard::genAntiDiagAttacks(U64 occ, const U8 sq) {
+    occ &= H1A8_DIAGONAL_TARGET_BBS[sq];
+    occ = (occ * FILE_B) >> 58;
+    return H1A8_DIAGONAL_TARGET_BBS[sq] & FILLUP_ATTACK_BBS[sq&7][occ];
+}
+
+inline void BitBoard::genQueenMoves(MoveList &mlist) {
+    register U64 bb;
+    const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
+    const U64 own_bb = pieces_by_color_bb[player];
+    const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
+    U64 pieces_to_move_bb = pieces_by_type_bb[QUEEN] & own_bb;
+    U64 captures_bb;
+    U32 from,to;
+    Move m = 0;
+
+    while(pieces_to_move_bb) {
+        from = bitscanfwd(pieces_to_move_bb);
+
+        bb = genDiagAttacks(occ_bb, from);
+        bb |= genAntiDiagAttacks(occ_bb, from);
+        bb |= genRankAttacks(occ_bb, from);
+        bb |= genFileAttacks(occ_bb, from);
+        bb &= ~own_bb;
+        captures_bb = bb & opp_bb;
+        bb &= ~opp_bb;
+
+        //normal moves
+        while(bb) {
+            to = bitscanfwd(bb);
+
+            m = moveCreate(from, to, QUEEN, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
+            mlist.put(m);
+
+            bb &= ~iBitMask(to);
+        }
+
+        bb = captures_bb;
+        //captures
+        while(bb) {
+            to = bitscanfwd(bb);
+
+            m = moveCreate(from, to, QUEEN, CAPTURE_YES, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
+            mlist.put(m);
+
+            bb &= ~iBitMask(to);
+        }
+
+
+        pieces_to_move_bb &= ~iBitMask(from);
+    }
+}
+
+inline void BitBoard::genBishopMoves(MoveList &mlist) {
+    register U64 bb;
+    const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
+    const U64 own_bb = pieces_by_color_bb[player];
+    const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
+    U64 pieces_to_move_bb = pieces_by_type_bb[BISHOP] & own_bb;
+    U64 captures_bb;
+    U32 from,to;
+    Move m = 0;
+
+    while(pieces_to_move_bb) {
+        from = bitscanfwd(pieces_to_move_bb);
+
+        bb = genDiagAttacks(occ_bb, from);
+        bb |= genAntiDiagAttacks(occ_bb, from);
+        bb &= ~own_bb;
+        captures_bb = bb & opp_bb;
+        bb &= ~opp_bb;
+
+        //normal moves
+        while(bb) {
+            to = bitscanfwd(bb);
+
+            m = moveCreate(from, to, BISHOP, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
+            mlist.put(m);
+
+            bb &= ~iBitMask(to);
+        }
+
+        bb = captures_bb;
+        //captures
+        while(bb) {
+            to = bitscanfwd(bb);
+
+            m = moveCreate(from, to, BISHOP, CAPTURE_YES, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
+            mlist.put(m);
+
+            bb &= ~iBitMask(to);
+        }
+
+
+        pieces_to_move_bb &= ~iBitMask(from);
+    }
 }
 
 inline void BitBoard::genRookMoves(MoveList &mlist) {
@@ -176,8 +269,9 @@ inline void BitBoard::genRookMoves(MoveList &mlist) {
     const U64 own_bb = pieces_by_color_bb[player];
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
     U64 play_rooks_bb = pieces_by_type_bb[ROOK] & own_bb;
-    U64 captures;
-    U32 from;
+    U64 captures_bb;
+    U32 from, to;
+    Move m = 0;
 
     while(play_rooks_bb) {
         from = bitscanfwd(play_rooks_bb);
@@ -185,11 +279,29 @@ inline void BitBoard::genRookMoves(MoveList &mlist) {
         bb = genRankAttacks(occ_bb, from);
         bb |= genFileAttacks(occ_bb, from);
         bb &= ~own_bb;
-        captures = bb & opp_bb;
-        PRINTBB(captures, "Captures");
-        bb &= ~captures;
+        captures_bb = bb & opp_bb;
+        bb &= ~opp_bb;
 
-        PRINTBB(bb, "ROOK");
+        //normal moves
+        while(bb) {
+            to = bitscanfwd(bb);
+
+            m = moveCreate(from, to, ROOK, CAPTURE_NO, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_DEFAULT); //TODO VALUE
+            mlist.put(m);
+
+            bb &= ~iBitMask(to);
+        }
+
+        bb = captures_bb;
+        //captures
+        while(bb) {
+            to = bitscanfwd(bb);
+
+            m = moveCreate(from, to, ROOK, CAPTURE_YES, EMPTY, EP_TYPE_NONE, CASTLE_NO, MOVE_PRE_EVAL_GOODCAP); //TODO VALUE
+            mlist.put(m);
+
+            bb &= ~iBitMask(to);
+        }
 
         play_rooks_bb &= ~iBitMask(from);
     }

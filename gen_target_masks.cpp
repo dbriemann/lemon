@@ -223,10 +223,10 @@ void genBlockedDiagAttack() {
             if(occ >= 1) {
                 cout << ", ";
             }
-            //cout << "--------------*****************+----------------------------*" << endl;
+            cout << "--------------*****************+----------------------------*" << endl;
             U64 result = 0;
             U64 wanderer = piece_at;
-            //PRINTBB(piece_at, "PIECE");
+            PRINTBB(piece_at, "PIECE");
             U64 occu = 0;
             U64 innerocc = (occ << 1);
             while(innerocc) {
@@ -237,7 +237,7 @@ void genBlockedDiagAttack() {
                 innerocc &= ~iBitMask(bit);
             }
             occu |= iBitMask(0) | iBitMask(63);
-            //PRINTBB(occu, "OCC");
+            PRINTBB(occu, "OCC");
 
             //move NE
             do {
@@ -252,8 +252,8 @@ void genBlockedDiagAttack() {
                 result |= wanderer;
             } while(((wanderer & occu) == 0) && (wanderer != 0));
 
-            //PRINTBB(result, "RESULT");
-            cout << "0x" << hex << uppercase << result;
+            PRINTBB(result, "RESULT");
+            //cout << "0x" << hex << uppercase << result;
         }
         cout << "}";
     }
@@ -283,6 +283,75 @@ void genDiags() {
     cout << endl << "};" << endl;
 }
 
+void genAntiDiags() {
+    cout << "static const U64 ANTI_DIAGONALS_BBS[64] = {" << endl;
+    for(U8 i = 0; i < 64; i++) {
+        if(i >= 1) {
+            cout << ", ";
+        }
+        if(i % 8 == 0) {
+            cout << endl;
+        }
+        U8 f = i % 8;
+        U64 p = iBitMask(i);
+        for(U8 s = 1; s <= 7-f; s++) {
+            p |= _SHIFT_SE(p);
+        }
+        for(U8 s = 1; s <= f; s++) {
+            p |= _SHIFT_NW(p);
+        }
+        //PRINTBB(p, "NE+SW");
+        cout << "0x" << hex << uppercase << p;
+    }
+    cout << endl << "};" << endl;
+}
+
+void genFillUpMask() {
+    cout << "static const U64 FILLUP_ATTACK_BBS[8][64] = {" << endl;
+    for(int file = 0; file < 8; file++) {
+        if(file >= 1) {
+            cout << "," << endl;
+        }
+        cout << "{";
+        U64 piece_at = iBitMask(file);
+
+        for(U64 occ = 0; occ < 64; occ++) {
+            if(occ >= 1) {
+                cout << ", ";
+            }
+            //cout << "------------------------------------------*" << endl;
+            //PRINTBB(piece_at, "PIECE");
+            U64 result = 0;
+            U64 wanderer = piece_at;
+            U64 occu = (occ << 1) | 0x81;
+
+            //PRINTBB(occu, "OCCU");
+
+            //move east
+            do {
+                wanderer = _SHIFT_E(wanderer) & ~FILE_A;
+                result |= wanderer;
+            } while(((wanderer & occu) == 0) && (wanderer != 0));
+
+            wanderer = piece_at;
+            //move west
+            do {
+                wanderer = _SHIFT_W(wanderer) & ~FILE_H;
+                result |= wanderer;
+            } while(((wanderer & occu) == 0) && (wanderer != 0));
+
+            result |= (result << 8) | (result << 16) | (result << 24) | (result << 32) | (result << 40) | (result << 48) | (result << 56);
+
+            cout << "0x" << hex << uppercase << result;
+
+            //PRINTBB(result, "RESULT");
+        }
+        cout << "}";
+
+        //cout << "----------------------------------------------" << endl;
+    }
+    cout << endl << "};" << endl;
+}
 
 int main() {
 
@@ -292,8 +361,10 @@ int main() {
     //genBlockedFirstFileMasks();
 
     //TODO diagonal masks...
-    genDiags();
+    //genDiags();
     //genBlockedDiagAttack();
+    //genFillUpMask();
+    genAntiDiags();
 
     return 0;
 }
