@@ -62,6 +62,7 @@ struct BitBoard {
 
     inline U64 genRankAttacks(const U64 occ, const U8 sq);
     inline U64 genFileAttacks(U64 occ, const U8 sq);
+    inline U64 genDiagAttacks(U64 occ, const U8 sq);
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -161,6 +162,12 @@ inline U64 BitBoard::genFileAttacks(U64 occ, const U8 sq) {
     //PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o], "ATTACK");
     //PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o] << f, "ATTACK2");
     return FILE_ATTACK_BBS[RANK(sq)][o] << f;
+}
+
+inline U64 genDiagAttacks(U64 occ, const U8 sq) {
+   //const U64 bFile = C64(0x0202020202020202);
+   //occ = (diagonalMaskEx[sq] & occ) * bFile >> 58;
+   //return diagonalMaskEx[sq] & fillUpAttacks[sq&7][occ];
 }
 
 inline void BitBoard::genRookMoves(MoveList &mlist) {

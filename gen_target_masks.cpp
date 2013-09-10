@@ -220,10 +220,13 @@ void genBlockedDiagAttack() {
         U64 piece_at = iBitMask(file*8 + file);
 
         for(U8 occ = 0; occ < 64; occ++) {
-            cout << "--------------*****************+----------------------------*" << endl;
+            if(occ >= 1) {
+                cout << ", ";
+            }
+            //cout << "--------------*****************+----------------------------*" << endl;
             U64 result = 0;
             U64 wanderer = piece_at;
-            PRINTBB(piece_at, "PIECE");
+            //PRINTBB(piece_at, "PIECE");
             U64 occu = 0;
             U64 innerocc = (occ << 1);
             while(innerocc) {
@@ -234,7 +237,7 @@ void genBlockedDiagAttack() {
                 innerocc &= ~iBitMask(bit);
             }
             occu |= iBitMask(0) | iBitMask(63);
-            PRINTBB(occu, "OCC");
+            //PRINTBB(occu, "OCC");
 
             //move NE
             do {
@@ -249,8 +252,8 @@ void genBlockedDiagAttack() {
                 result |= wanderer;
             } while(((wanderer & occu) == 0) && (wanderer != 0));
 
-            PRINTBB(result, "RESULT");
-            //cout << "0x" << hex << uppercase << result;
+            //PRINTBB(result, "RESULT");
+            cout << "0x" << hex << uppercase << result;
         }
         cout << "}";
     }
@@ -264,6 +267,9 @@ int main() {
     //genKingTargets();
     //genBlockedFirstRankMasks();
     //genBlockedFirstFileMasks();
+
+    //TODO diagonal masks...
+
     genBlockedDiagAttack();
 
     return 0;
