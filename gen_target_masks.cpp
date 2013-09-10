@@ -260,6 +260,29 @@ void genBlockedDiagAttack() {
     cout << endl << "};" << endl;
 }
 
+void genDiags() {
+    cout << "static const U64 DIAGONALS_BBS[64] = {" << endl;
+    for(U8 i = 0; i < 64; i++) {
+        if(i >= 1) {
+            cout << ", ";
+        }
+        if(i % 8 == 0) {
+            cout << endl;
+        }
+        U8 f = i % 8;
+        U64 p = iBitMask(i);
+        for(U8 s = 1; s <= 7-f; s++) {
+            p |= _SHIFT_NE(p);
+        }
+        for(U8 s = 1; s <= f; s++) {
+            p |= _SHIFT_SW(p);
+        }
+        //PRINTBB(p, "NE+SW");
+        cout << "0x" << hex << uppercase << p;
+    }
+    cout << endl << "};" << endl;
+}
+
 
 int main() {
 
@@ -269,8 +292,8 @@ int main() {
     //genBlockedFirstFileMasks();
 
     //TODO diagonal masks...
-
-    genBlockedDiagAttack();
+    genDiags();
+    //genBlockedDiagAttack();
 
     return 0;
 }
