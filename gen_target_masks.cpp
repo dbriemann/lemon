@@ -209,13 +209,62 @@ void genBlockedFirstFileMasks() {
     cout << endl << "};" << endl;
 }
 
+//a1 to h8
+void genBlockedDiagAttack() {
+    cout << "static const U64 DIAG_ATTACK_BBS[8][64] = {" << endl;
+    for(int file = 0; file < 8; file++) {
+        if(file >= 1) {
+            cout << "," << endl;
+        }
+        cout << "{";
+        U64 piece_at = iBitMask(file*8 + file);
+
+        for(U8 occ = 0; occ < 64; occ++) {
+            cout << "--------------*****************+----------------------------*" << endl;
+            U64 result = 0;
+            U64 wanderer = piece_at;
+            PRINTBB(piece_at, "PIECE");
+            U64 occu = 0;
+            U64 innerocc = (occ << 1);
+            while(innerocc) {
+                U32 bit = bitscanfwd(innerocc);
+
+                occu |= iBitMask(bit * 8 + bit);
+
+                innerocc &= ~iBitMask(bit);
+            }
+            occu |= iBitMask(0) | iBitMask(63);
+            PRINTBB(occu, "OCC");
+
+            //move NE
+            do {
+                wanderer = _SHIFT_NE(wanderer) & ~RANK_1 & ~FILE_A;
+                result |= wanderer;
+            } while(((wanderer & occu) == 0) && (wanderer != 0));
+
+            wanderer = piece_at;
+            //move SW
+            do {
+                wanderer = _SHIFT_SW(wanderer) & ~RANK_8 & ~FILE_H;
+                result |= wanderer;
+            } while(((wanderer & occu) == 0) && (wanderer != 0));
+
+            PRINTBB(result, "RESULT");
+            //cout << "0x" << hex << uppercase << result;
+        }
+        cout << "}";
+    }
+    cout << endl << "};" << endl;
+}
+
 
 int main() {
 
     //genKnightsTargets();
     //genKingTargets();
     //genBlockedFirstRankMasks();
-    genBlockedFirstFileMasks();
+    //genBlockedFirstFileMasks();
+    genBlockedDiagAttack();
 
     return 0;
 }

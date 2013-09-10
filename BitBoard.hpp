@@ -160,14 +160,16 @@ inline U64 BitBoard::genFileAttacks(U64 occ, const U8 sq) {
     //cout << "FILE: " << (sq & 7) << endl;
     //PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o], "ATTACK");
     //PRINTBB(FILE_ATTACK_BBS[RANK(sq)][o] << f, "ATTACK2");
-    return (FILE_ATTACK_BBS[RANK(sq)][o]) << f;
+    return FILE_ATTACK_BBS[RANK(sq)][o] << f;
 }
 
 inline void BitBoard::genRookMoves(MoveList &mlist) {
     register U64 bb;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     const U64 own_bb = pieces_by_color_bb[player];
+    const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
     U64 play_rooks_bb = pieces_by_type_bb[ROOK] & own_bb;
+    U64 captures;
     U32 from;
 
     while(play_rooks_bb) {
@@ -176,6 +178,9 @@ inline void BitBoard::genRookMoves(MoveList &mlist) {
         bb = genRankAttacks(occ_bb, from);
         bb |= genFileAttacks(occ_bb, from);
         bb &= ~own_bb;
+        captures = bb & opp_bb;
+        PRINTBB(captures, "Captures");
+        bb &= ~captures;
 
         PRINTBB(bb, "ROOK");
 
