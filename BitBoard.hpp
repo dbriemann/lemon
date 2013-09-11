@@ -35,9 +35,12 @@ struct BitBoard {
 
 
     /*
-     * Constructors, copy-constructors, destructors
+     * Constructors, copy-constructor, move constructor, destructor
+     * operators and related stuff
      */
     BitBoard();
+    BitBoard(const BitBoard &other);
+    BitBoard& operator=(const BitBoard &other);
 
 
 
@@ -90,6 +93,49 @@ BitBoard::BitBoard() {
     en_passent_sq = NONE;
     draw_counter = 0;
     move_number = 1;
+    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
+        this->occupancy[i] = EMPTY;
+    }
+}
+
+BitBoard::BitBoard(const BitBoard& other) {
+    for(int c = WHITE; c <= BLACK; c++) {
+        this->pieces_by_color_bb[c] = other.pieces_by_color_bb[c];
+        this->castle_long[c] = other.castle_long[c];
+        this->castle_short[c] = other.castle_short[c];
+        this->kings[c] = other.kings[c];
+    }
+    for(int t = PAWN; t <= KING; t++) {
+        this->pieces_by_type_bb[t] = other.pieces_by_type_bb[t];
+    }
+    this->en_passent_sq = other.en_passent_sq;
+    this->draw_counter = other.draw_counter;
+    this->move_number = other.move_number;
+    this->player = other.player;
+    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
+        this->occupancy[i] = other.occupancy[i];
+    }
+}
+
+
+BitBoard& BitBoard::operator=(const BitBoard& other) {
+    for(int c = WHITE; c <= BLACK; c++) {
+        this->pieces_by_color_bb[c] = other.pieces_by_color_bb[c];
+        this->castle_long[c] = other.castle_long[c];
+        this->castle_short[c] = other.castle_short[c];
+        this->kings[c] = other.kings[c];
+    }
+    for(int t = PAWN; t <= KING; t++) {
+        this->pieces_by_type_bb[t] = other.pieces_by_type_bb[t];
+    }
+    this->en_passent_sq = other.en_passent_sq;
+    this->draw_counter = other.draw_counter;
+    this->move_number = other.move_number;
+    this->player = other.player;
+    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
+        this->occupancy[i] = other.occupancy[i];
+    }
+    return *this;
 }
 
 inline
@@ -133,7 +179,7 @@ bool BitBoard::makeMoveIfLegal(Move m) {
     //remember piece types?
     //const U8 from_piece = occupancy[from];
     const U8 to_piece = occupancy[to];
-    cout << intToString(ptype) << " " << intToString(to_piece) << endl;
+    //cout << intToString(ptype) << " " << intToString(to_piece) << endl;
 
     //reset ep square
     en_passent_sq = NONE;
