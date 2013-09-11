@@ -105,6 +105,19 @@ void BitBoard::zeroAll() {
 
 bool BitBoard::makeMoveIfLegal(Move m) {
     /*
+     * temporary variables
+     * and extraction of move features
+     */
+    bool success = true;
+    const U8 opponent = FLIP(player);
+    const U32 from = moveGetFeature(m, FROM_MASK, FROM_SHIFT);
+    const U32 to = moveGetFeature(m, TO_MASK, TO_SHIFT);
+    const U32 ptype = moveGetFeature(m, PIECE_MASK, PIECE_SHIFT);
+    const U32 capflag = moveGetFeature(m, CAPTURE_MASK, CAPTURE_SHIFT);
+    const U32 eptype = moveGetFeature(m, EP_MASK, EP_SHIFT);
+    const U32 promtype = moveGetFeature(m, PROMOTION_MASK, PROMOTION_SHIFT);
+
+    /*
      * backup game state specific variables
      * in case the move is illegal and
      * must be reverted in place
@@ -117,19 +130,13 @@ bool BitBoard::makeMoveIfLegal(Move m) {
     castle_00[BLACK] = castle_short[BLACK];
     U8 draw = draw_counter;
     U8 ep = en_passent_sq;
-    //remember piece types
+    //remember piece types?
+    //const U8 from_piece = occupancy[from];
+    const U8 to_piece = occupancy[to];
+    cout << intToString(ptype) << " " << intToString(to_piece) << endl;
 
-    /*
-     * temporary variables
-     * and extraction of move features
-     */
-    bool success = true;
-    const U8 opponent = FLIP(player);
-    //cout << "makeMoveIfLegal(): " << moveToStr(m) << endl;
-    const U32 from = moveGetFeature(m, FROM_MASK, FROM_SHIFT);
-    const U32 to = moveGetFeature(m, TO_MASK, TO_SHIFT);
-    const U32 ptype = moveGetFeature(m, PIECE_MASK, PIECE_SHIFT);
-    const U32 capflag = moveGetFeature(m, CAPTURE_MASK, CAPTURE_SHIFT);
+    //reset ep square
+    en_passent_sq = NONE;
 
     /*
      * begin moving the piece by removing it from the
@@ -146,22 +153,64 @@ bool BitBoard::makeMoveIfLegal(Move m) {
      * opponent's piece from its bbs
      */
     if(capflag) {
-        const U32 eptype = moveGetFeature(m, EP_MASK, EP_SHIFT);
         if(eptype == EP_TYPE_CAPTURE) {
             //captured pawn is one step ahead of <to>
             U8 pbit = to - PAWN_MOVE_DIRECTIONS[player];
             pieces_by_color_bb[opponent] &= ~iBitMask(pbit);
             pieces_by_type_bb[occupancy[pbit]] &= ~iBitMask(pbit); //already swapped..from<->to
+            occupancy[pbit] = EMPTY;
         } else {
             pieces_by_color_bb[opponent] &= ~iBitMask(to);
             pieces_by_type_bb[occupancy[from]] &= ~iBitMask(to); //already swapped..from<->to
+
+            //check if capture disables opponent
+            //from future castling by capturing a rook
+            if(to_piece == ROOK) {
+                if(to == CASTLE_SHORT_ROOK[opponent]) {
+                    castle_short[opponent] = false;
+                } else if(to == CASTLE_LONG_ROOK[opponent]) {
+                    castle_long[opponent] = false;
+                }
+            }
         }
 
-        //TODO
-        //check if opponent castling is disabled
-        //by capturing a rook
+        //reset draw counter
+        draw_counter = 0;
+    } else {
+        const U32 castleflag = moveGetFeature(m, CASTLE_MASK, CASTLE_SHIFT);
 
-        //TODO reset draw counter..
+        //special non capture moves
+        if(eptype == EP_TYPE_CREATE) {
+            en_passent_sq = to - PAWN_MOVE_DIRECTIONS[player];
+        } else if(ptype == KING) {
+            if(castleflag) {
+                //TODO check squares for attacks + check
+                //TODO castling flag -> castling type??
+                if(to == CASTLE_SHORT_TARGET[player]) {
+                    //castle short
+                    //move rook..
+                    swap(occupancy[CASTLE_SHORT_ROOK[player]], occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
+                    pieces_by_color_bb[player] &= ~iBitMask(occupancy[CASTLE_SHORT_ROOK[player]]);
+                    pieces_by_color_bb[player] |= iBitMask(occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
+                    pieces_by_type_bb[ROOK] &= ~iBitMask(occupancy[CASTLE_SHORT_ROOK[player]]);
+                    pieces_by_type_bb[ROOK] |= iBitMask(occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
+                } else {
+                    //castle long
+                    //move rook..
+                    swap(occupancy[CASTLE_LONG_ROOK[player]], occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
+                    pieces_by_color_bb[player] &= ~iBitMask(occupancy[CASTLE_LONG_ROOK[player]]);
+                    pieces_by_color_bb[player] |= iBitMask(occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
+                    pieces_by_type_bb[ROOK] &= ~iBitMask(occupancy[CASTLE_LONG_ROOK[player]]);
+                    pieces_by_type_bb[ROOK] |= iBitMask(occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
+                }
+            }
+
+            kings[player] = to;
+
+            //king moves always disable all castling rights
+            castle_long[player] = false;
+            castle_short[player] = false;
+        }
     }
 
     /*
@@ -171,25 +220,31 @@ bool BitBoard::makeMoveIfLegal(Move m) {
     pieces_by_color_bb[player] |= iBitMask(to);
     pieces_by_type_bb[ptype] |= iBitMask(to);
 
-    //TODO GO ON HERE
-
-
-
-
-    //handle specific pieces
-
-
-
-    //do all alterations of the game state only if
-    //the move was proven to be legal
-
-    //color flip
-    //draw reset
-    //move number
+    //promotion..
+    if(promtype != EMPTY) {
+        occupancy[to] = promtype;
+        pieces_by_type_bb[PAWN] &= ~iBitMask(to);
+        pieces_by_type_bb[promtype] |= iBitMask(to);
+    }
 
     if(success) {
         //delete from helper board
         occupancy[from] = EMPTY; //already swapped..from<->to
+        //switch player
+        player = FLIP(player);
+        if(player == WHITE) {
+            move_number++;
+        }
+    } else {
+        //revert everything to backups
+        draw_counter = draw;
+        en_passent_sq = ep;
+        castle_long[WHITE] = castle_000[WHITE];
+        castle_long[BLACK] = castle_000[BLACK];
+        castle_short[WHITE] = castle_00[WHITE];
+        castle_short[BLACK] = castle_00[BLACK];
+        occupancy[from] = ptype;
+        occupancy[to] = to_piece;
     }
 
 
@@ -622,6 +677,7 @@ U8 BitBoard::get(Square line, Square rank) const {
 
     if(piece != occupancy[bit]) {
         ERROR("BitBoard::get() : boards not synced...");
+        exit(1); //BANG BANG
     }
 
 

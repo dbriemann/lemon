@@ -31,6 +31,10 @@ static const U64 CASTLE_SHORT_PATH[2] = {0x00000060, 0x60000000};
 static const U64 CASTLE_LONG_PATH[2] = {0x0000000E, 0xE0000000};
 static const U8 CASTLE_SHORT_TARGET[2] = {6,62};
 static const U8 CASTLE_LONG_TARGET[2] = {2,58};
+static const U8 CASTLE_SHORT_ROOK[2] = {7,63};
+static const U8 CASTLE_SHORT_ROOK_TARGET[2] = {5,61};
+static const U8 CASTLE_LONG_ROOK[2] = {0,56};
+static const U8 CASTLE_LONG_ROOK_TARGET[2] = {3,59};
 
 #define FROM_MASK       0x000000FF //8bit
 #define TO_MASK         0x0000FF00 //8bit (8)
