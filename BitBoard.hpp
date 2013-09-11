@@ -104,30 +104,70 @@ void BitBoard::zeroAll() {
 }
 
 bool BitBoard::makeMoveIfLegal(Move m) {
+    /*
+     * backup game state specific variables
+     * in case the move is illegal and
+     * must be reverted in place
+     */
+    bool castle_000[2];
+    castle_000[WHITE] = castle_long[WHITE];
+    castle_000[BLACK] = castle_long[BLACK];
+    bool castle_00[2];
+    castle_00[WHITE] = castle_short[WHITE];
+    castle_00[BLACK] = castle_short[BLACK];
+    U8 draw = draw_counter;
+    U8 ep = en_passent_sq;
+    //remember piece types
+
+    /*
+     * temporary variables
+     * and extraction of move features
+     */
     bool success = true;
     const U8 opponent = FLIP(player);
-    cout << "makeMoveIfLegal(): " << moveToStr(m) << endl;
-    U32 from = moveGetFeature(m, FROM_MASK, FROM_SHIFT);
-    U32 to = moveGetFeature(m, TO_MASK, TO_SHIFT);
-    U32 ptype = moveGetFeature(m, PIECE_MASK, PIECE_SHIFT);
-    U32 capflag = moveGetFeature(m, CAPTURE_MASK, CAPTURE_SHIFT);
+    //cout << "makeMoveIfLegal(): " << moveToStr(m) << endl;
+    const U32 from = moveGetFeature(m, FROM_MASK, FROM_SHIFT);
+    const U32 to = moveGetFeature(m, TO_MASK, TO_SHIFT);
+    const U32 ptype = moveGetFeature(m, PIECE_MASK, PIECE_SHIFT);
+    const U32 capflag = moveGetFeature(m, CAPTURE_MASK, CAPTURE_SHIFT);
 
-    //remove "from"-piece from bitboards
+    /*
+     * begin moving the piece by removing it from the
+     * <from> position of its corresponding bbs
+     * then swap <from> and <to> positions on the
+     * occupancy helper board
+     */
     pieces_by_color_bb[player] &= ~iBitMask(from);
     pieces_by_type_bb[ptype] &= ~iBitMask(from);
-    //swap positions on helper board
     swap(occupancy[from], occupancy[to]);
 
-    //handle capture case
+    /*
+     * in case of a capture remove the
+     * opponent's piece from its bbs
+     */
     if(capflag) {
-        //remove opponent piece
-        pieces_by_color_bb[opponent] &= ~iBitMask(to);
-        pieces_by_type_bb[occupancy[from]] &= ~iBitMask(to); //already swapped..from<->to
+        const U32 eptype = moveGetFeature(m, EP_MASK, EP_SHIFT);
+        if(eptype == EP_TYPE_CAPTURE) {
+            //captured pawn is one step ahead of <to>
+            U8 pbit = to - PAWN_MOVE_DIRECTIONS[player];
+            pieces_by_color_bb[opponent] &= ~iBitMask(pbit);
+            pieces_by_type_bb[occupancy[pbit]] &= ~iBitMask(pbit); //already swapped..from<->to
+        } else {
+            pieces_by_color_bb[opponent] &= ~iBitMask(to);
+            pieces_by_type_bb[occupancy[from]] &= ~iBitMask(to); //already swapped..from<->to
+        }
+
+        //TODO
+        //check if opponent castling is disabled
+        //by capturing a rook
 
         //TODO reset draw counter..
     }
 
-    //add piece to "to"-square
+    /*
+     * finally add the moving piece to its destination
+     * position on its corresponding bbs
+     */
     pieces_by_color_bb[player] |= iBitMask(to);
     pieces_by_type_bb[ptype] |= iBitMask(to);
 
@@ -149,7 +189,7 @@ bool BitBoard::makeMoveIfLegal(Move m) {
 
     if(success) {
         //delete from helper board
-        occupancy[from] = EMPTY;
+        occupancy[from] = EMPTY; //already swapped..from<->to
     }
 
 

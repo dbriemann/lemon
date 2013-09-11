@@ -72,7 +72,7 @@ inline void moveSetFeature(Move &m, const U32 mask, const U32 shift, U32 bits) {
     m |= bits;
 }
 
-inline U32 moveGetFeature(Move &m, const U32 mask, const U32 shift) {
+inline U32 moveGetFeature(const Move &m, const U32 mask, const U32 shift) {
     return (m & mask) >> shift;
 }
 
