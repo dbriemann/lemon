@@ -22,8 +22,9 @@ struct BitBoard {
     /*
      * Arrays to help in certain situation
      */
-    U8 occupancy[64];
+    //U8 occupancy[64];
     U8 kings[2];
+    bool is_check;
 
     //wrap all following into one U32?
     U8 player;
@@ -74,7 +75,10 @@ struct BitBoard {
     /*
      * Move execution methods
      */
-    bool makeMoveIfLegal(Move m);
+    bool makeLightMove(Move m);
+    //bool makeMoveIfLegal(Move m);
+    bool isAttacked(const U8 sq);
+    bool probeCheck();
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -93,9 +97,10 @@ BitBoard::BitBoard() {
     en_passent_sq = NONE;
     draw_counter = 0;
     move_number = 1;
-    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
-        this->occupancy[i] = EMPTY;
-    }
+    is_check = false;
+//    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
+//        this->occupancy[i] = EMPTY;
+//    }
 }
 
 BitBoard::BitBoard(const BitBoard& other) {
@@ -108,13 +113,14 @@ BitBoard::BitBoard(const BitBoard& other) {
     for(int t = PAWN; t <= KING; t++) {
         this->pieces_by_type_bb[t] = other.pieces_by_type_bb[t];
     }
+    this->is_check = other.is_check;
     this->en_passent_sq = other.en_passent_sq;
     this->draw_counter = other.draw_counter;
     this->move_number = other.move_number;
     this->player = other.player;
-    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
-        this->occupancy[i] = other.occupancy[i];
-    }
+//    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
+//        this->occupancy[i] = other.occupancy[i];
+//    }
 }
 
 
@@ -132,9 +138,10 @@ BitBoard& BitBoard::operator=(const BitBoard& other) {
     this->draw_counter = other.draw_counter;
     this->move_number = other.move_number;
     this->player = other.player;
-    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
-        this->occupancy[i] = other.occupancy[i];
-    }
+    this->is_check = other.is_check;
+//    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
+//        this->occupancy[i] = other.occupancy[i];
+//    }
     return *this;
 }
 
@@ -144,17 +151,36 @@ void BitBoard::zeroAll() {
     for(int i = PAWN; i <= KING; i++) {
         pieces_by_type_bb[i] = C64(0);
     }
-    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
-        occupancy[i] = EMPTY;
-    }
+//    for(int i = 0; i < BOARD_SIZE*BOARD_SIZE; i++) {
+//        occupancy[i] = EMPTY;
+//    }
 }
 
-bool BitBoard::makeMoveIfLegal(Move m) {
+/*
+ * checks if the current player is in check
+ */
+bool BitBoard::probeCheck() {
+    bool check = false;
+
+
+
+    return check;
+}
+
+/*
+ * executes a move and checks for legality
+ * returns true if the move was legal and executed properly
+ * returns false if the move was not legal. in this case
+ * the board will remain in an undefined/broken state
+ * user has to make sure the board gets replaced with a proper
+ * valid board.
+ * works only with copy/make functionality. remains in illegal
+ * state to increase performance.
+ */
+bool BitBoard::makeLightMove(Move m) {
     /*
-     * temporary variables
-     * and extraction of move features
+     * extraction of move features
      */
-    bool success = true;
     const U8 opponent = FLIP(player);
     const U32 from = moveGetFeature(m, FROM_MASK, FROM_SHIFT);
     const U32 to = moveGetFeature(m, TO_MASK, TO_SHIFT);
@@ -162,27 +188,10 @@ bool BitBoard::makeMoveIfLegal(Move m) {
     const U32 capflag = moveGetFeature(m, CAPTURE_MASK, CAPTURE_SHIFT);
     const U32 eptype = moveGetFeature(m, EP_MASK, EP_SHIFT);
     const U32 promtype = moveGetFeature(m, PROMOTION_MASK, PROMOTION_SHIFT);
-
-    /*
-     * backup game state specific variables
-     * in case the move is illegal and
-     * must be reverted in place
-     */
-    bool castle_000[2];
-    castle_000[WHITE] = castle_long[WHITE];
-    castle_000[BLACK] = castle_long[BLACK];
-    bool castle_00[2];
-    castle_00[WHITE] = castle_short[WHITE];
-    castle_00[BLACK] = castle_short[BLACK];
-    U8 draw = draw_counter;
-    U8 ep = en_passent_sq;
-    //remember piece types?
-    //const U8 from_piece = occupancy[from];
-    const U8 to_piece = occupancy[to];
-    //cout << intToString(ptype) << " " << intToString(to_piece) << endl;
-
     //reset ep square
+    //const U8 target_piece = occupancy[to];
     en_passent_sq = NONE;
+
 
     /*
      * begin moving the piece by removing it from the
@@ -192,7 +201,7 @@ bool BitBoard::makeMoveIfLegal(Move m) {
      */
     pieces_by_color_bb[player] &= ~iBitMask(from);
     pieces_by_type_bb[ptype] &= ~iBitMask(from);
-    swap(occupancy[from], occupancy[to]);
+    //swap(occupancy[from], occupancy[to]);
 
     /*
      * in case of a capture remove the
@@ -203,21 +212,28 @@ bool BitBoard::makeMoveIfLegal(Move m) {
             //captured pawn is one step ahead of <to>
             U8 pbit = to - PAWN_MOVE_DIRECTIONS[player];
             pieces_by_color_bb[opponent] &= ~iBitMask(pbit);
-            pieces_by_type_bb[occupancy[pbit]] &= ~iBitMask(pbit); //already swapped..from<->to
-            occupancy[pbit] = EMPTY;
+            //pieces_by_type_bb[occupancy[pbit]] &= ~iBitMask(pbit); //already swapped..from<->to
+            pieces_by_type_bb[PAWN] &= ~iBitMask(pbit); //already swapped..from<->to
+            //occupancy[pbit] = EMPTY;
         } else {
-            pieces_by_color_bb[opponent] &= ~iBitMask(to);
-            pieces_by_type_bb[occupancy[from]] &= ~iBitMask(to); //already swapped..from<->to
+            U64 kill_bb = ~iBitMask(to);
+            pieces_by_color_bb[opponent] &= kill_bb;
+            //pieces_by_type_bb[occupancy[from]] &= ~iBitMask(to); //already swapped..from<->to
+            pieces_by_type_bb[PAWN] &= kill_bb;
+            pieces_by_type_bb[KNIGHT] &= kill_bb;
+            pieces_by_type_bb[BISHOP] &= kill_bb;
+            pieces_by_type_bb[ROOK] &= kill_bb;
+            pieces_by_type_bb[QUEEN] &= kill_bb;
 
             //check if capture disables opponent
             //from future castling by capturing a rook
-            if(to_piece == ROOK) {
+            //if(target_piece == ROOK) {
                 if(to == CASTLE_SHORT_ROOK[opponent]) {
                     castle_short[opponent] = false;
                 } else if(to == CASTLE_LONG_ROOK[opponent]) {
                     castle_long[opponent] = false;
                 }
-            }
+            //}
         }
 
         //reset draw counter
@@ -226,8 +242,11 @@ bool BitBoard::makeMoveIfLegal(Move m) {
         const U32 castleflag = moveGetFeature(m, CASTLE_MASK, CASTLE_SHIFT);
 
         //special non capture moves
-        if(eptype == EP_TYPE_CREATE) {
-            en_passent_sq = to - PAWN_MOVE_DIRECTIONS[player];
+        if(ptype == PAWN) {
+            draw_counter = 0;
+            if(eptype == EP_TYPE_CREATE) {
+                en_passent_sq = to - PAWN_MOVE_DIRECTIONS[player];
+            }
         } else if(ptype == KING) {
             if(castleflag) {
                 //TODO check squares for attacks + check
@@ -235,19 +254,19 @@ bool BitBoard::makeMoveIfLegal(Move m) {
                 if(to == CASTLE_SHORT_TARGET[player]) {
                     //castle short
                     //move rook..
-                    swap(occupancy[CASTLE_SHORT_ROOK[player]], occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
-                    pieces_by_color_bb[player] &= ~iBitMask(occupancy[CASTLE_SHORT_ROOK[player]]);
-                    pieces_by_color_bb[player] |= iBitMask(occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
-                    pieces_by_type_bb[ROOK] &= ~iBitMask(occupancy[CASTLE_SHORT_ROOK[player]]);
-                    pieces_by_type_bb[ROOK] |= iBitMask(occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
+                    //swap(occupancy[CASTLE_SHORT_ROOK[player]], occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
+                    pieces_by_color_bb[player] &= ~iBitMask(CASTLE_SHORT_ROOK[player]);
+                    pieces_by_color_bb[player] |= iBitMask(CASTLE_SHORT_ROOK_TARGET[player]);
+                    pieces_by_type_bb[ROOK] &= ~iBitMask(CASTLE_SHORT_ROOK[player]);
+                    pieces_by_type_bb[ROOK] |= iBitMask(CASTLE_SHORT_ROOK_TARGET[player]);
                 } else {
                     //castle long
                     //move rook..
-                    swap(occupancy[CASTLE_LONG_ROOK[player]], occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
-                    pieces_by_color_bb[player] &= ~iBitMask(occupancy[CASTLE_LONG_ROOK[player]]);
-                    pieces_by_color_bb[player] |= iBitMask(occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
-                    pieces_by_type_bb[ROOK] &= ~iBitMask(occupancy[CASTLE_LONG_ROOK[player]]);
-                    pieces_by_type_bb[ROOK] |= iBitMask(occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
+                    //swap(occupancy[CASTLE_LONG_ROOK[player]], occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
+                    pieces_by_color_bb[player] &= ~iBitMask(CASTLE_LONG_ROOK[player]);
+                    pieces_by_color_bb[player] |= iBitMask(CASTLE_LONG_ROOK_TARGET[player]);
+                    pieces_by_type_bb[ROOK] &= ~iBitMask(CASTLE_LONG_ROOK[player]);
+                    pieces_by_type_bb[ROOK] |= iBitMask(CASTLE_LONG_ROOK_TARGET[player]);
                 }
             }
 
@@ -268,34 +287,174 @@ bool BitBoard::makeMoveIfLegal(Move m) {
 
     //promotion..
     if(promtype != EMPTY) {
-        occupancy[to] = promtype;
+        //occupancy[to] = promtype;
         pieces_by_type_bb[PAWN] &= ~iBitMask(to);
         pieces_by_type_bb[promtype] |= iBitMask(to);
     }
 
-    if(success) {
-        //delete from helper board
-        occupancy[from] = EMPTY; //already swapped..from<->to
-        //switch player
-        player = FLIP(player);
-        if(player == WHITE) {
-            move_number++;
-        }
-    } else {
-        //revert everything to backups
-        draw_counter = draw;
-        en_passent_sq = ep;
-        castle_long[WHITE] = castle_000[WHITE];
-        castle_long[BLACK] = castle_000[BLACK];
-        castle_short[WHITE] = castle_00[WHITE];
-        castle_short[BLACK] = castle_00[BLACK];
-        occupancy[from] = ptype;
-        occupancy[to] = to_piece;
+    /*
+     * finish everything
+     */
+    //delete from helper board
+    //occupancy[from] = EMPTY; //already swapped..from<->to
+    //switch player
+    player = FLIP(player);
+    if(player == WHITE) {
+        move_number++;
     }
 
-
-    return success;
+    return true;
 }
+
+
+//bool BitBoard::makeMoveIfLegal(Move m) {
+//    /*
+//     * temporary variables
+//     * and extraction of move features
+//     */
+//    bool success = true;
+//    const U8 opponent = FLIP(player);
+//    const U32 from = moveGetFeature(m, FROM_MASK, FROM_SHIFT);
+//    const U32 to = moveGetFeature(m, TO_MASK, TO_SHIFT);
+//    const U32 ptype = moveGetFeature(m, PIECE_MASK, PIECE_SHIFT);
+//    const U32 capflag = moveGetFeature(m, CAPTURE_MASK, CAPTURE_SHIFT);
+//    const U32 eptype = moveGetFeature(m, EP_MASK, EP_SHIFT);
+//    const U32 promtype = moveGetFeature(m, PROMOTION_MASK, PROMOTION_SHIFT);
+
+//    /*
+//     * backup game state specific variables
+//     * in case the move is illegal and
+//     * must be reverted in place
+//     */
+//    bool castle_000[2];
+//    castle_000[WHITE] = castle_long[WHITE];
+//    castle_000[BLACK] = castle_long[BLACK];
+//    bool castle_00[2];
+//    castle_00[WHITE] = castle_short[WHITE];
+//    castle_00[BLACK] = castle_short[BLACK];
+//    U8 draw = draw_counter;
+//    U8 ep = en_passent_sq;
+//    //remember piece types?
+//    //const U8 from_piece = occupancy[from];
+//    const U8 to_piece = occupancy[to];
+//    //cout << intToString(ptype) << " " << intToString(to_piece) << endl;
+
+//    //reset ep square
+//    en_passent_sq = NONE;
+
+//    /*
+//     * begin moving the piece by removing it from the
+//     * <from> position of its corresponding bbs
+//     * then swap <from> and <to> positions on the
+//     * occupancy helper board
+//     */
+//    pieces_by_color_bb[player] &= ~iBitMask(from);
+//    pieces_by_type_bb[ptype] &= ~iBitMask(from);
+//    swap(occupancy[from], occupancy[to]);
+
+//    /*
+//     * in case of a capture remove the
+//     * opponent's piece from its bbs
+//     */
+//    if(capflag) {
+//        if(eptype == EP_TYPE_CAPTURE) {
+//            //captured pawn is one step ahead of <to>
+//            U8 pbit = to - PAWN_MOVE_DIRECTIONS[player];
+//            pieces_by_color_bb[opponent] &= ~iBitMask(pbit);
+//            pieces_by_type_bb[occupancy[pbit]] &= ~iBitMask(pbit); //already swapped..from<->to
+//            occupancy[pbit] = EMPTY;
+//        } else {
+//            pieces_by_color_bb[opponent] &= ~iBitMask(to);
+//            pieces_by_type_bb[occupancy[from]] &= ~iBitMask(to); //already swapped..from<->to
+
+//            //check if capture disables opponent
+//            //from future castling by capturing a rook
+//            if(to_piece == ROOK) {
+//                if(to == CASTLE_SHORT_ROOK[opponent]) {
+//                    castle_short[opponent] = false;
+//                } else if(to == CASTLE_LONG_ROOK[opponent]) {
+//                    castle_long[opponent] = false;
+//                }
+//            }
+//        }
+
+//        //reset draw counter
+//        draw_counter = 0;
+//    } else {
+//        const U32 castleflag = moveGetFeature(m, CASTLE_MASK, CASTLE_SHIFT);
+
+//        //special non capture moves
+//        if(eptype == EP_TYPE_CREATE) {
+//            en_passent_sq = to - PAWN_MOVE_DIRECTIONS[player];
+//        } else if(ptype == KING) {
+//            if(castleflag) {
+//                //TODO check squares for attacks + check
+//                //TODO castling flag -> castling type??
+//                if(to == CASTLE_SHORT_TARGET[player]) {
+//                    //castle short
+//                    //move rook..
+//                    swap(occupancy[CASTLE_SHORT_ROOK[player]], occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
+//                    pieces_by_color_bb[player] &= ~iBitMask(occupancy[CASTLE_SHORT_ROOK[player]]);
+//                    pieces_by_color_bb[player] |= iBitMask(occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
+//                    pieces_by_type_bb[ROOK] &= ~iBitMask(occupancy[CASTLE_SHORT_ROOK[player]]);
+//                    pieces_by_type_bb[ROOK] |= iBitMask(occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
+//                } else {
+//                    //castle long
+//                    //move rook..
+//                    swap(occupancy[CASTLE_LONG_ROOK[player]], occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
+//                    pieces_by_color_bb[player] &= ~iBitMask(occupancy[CASTLE_LONG_ROOK[player]]);
+//                    pieces_by_color_bb[player] |= iBitMask(occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
+//                    pieces_by_type_bb[ROOK] &= ~iBitMask(occupancy[CASTLE_LONG_ROOK[player]]);
+//                    pieces_by_type_bb[ROOK] |= iBitMask(occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
+//                }
+//            }
+
+//            kings[player] = to;
+
+//            //king moves always disable all castling rights
+//            castle_long[player] = false;
+//            castle_short[player] = false;
+//        }
+//    }
+
+//    /*
+//     * finally add the moving piece to its destination
+//     * position on its corresponding bbs
+//     */
+//    pieces_by_color_bb[player] |= iBitMask(to);
+//    pieces_by_type_bb[ptype] |= iBitMask(to);
+
+//    //promotion..
+//    if(promtype != EMPTY) {
+//        occupancy[to] = promtype;
+//        pieces_by_type_bb[PAWN] &= ~iBitMask(to);
+//        pieces_by_type_bb[promtype] |= iBitMask(to);
+//    }
+
+//    if(success) {
+//        //delete from helper board
+//        occupancy[from] = EMPTY; //already swapped..from<->to
+//        //switch player
+//        player = FLIP(player);
+//        if(player == WHITE) {
+//            move_number++;
+//        }
+//    } else {
+//        //revert everything to backups
+//        draw_counter = draw;
+//        en_passent_sq = ep;
+//        castle_long[WHITE] = castle_000[WHITE];
+//        castle_long[BLACK] = castle_000[BLACK];
+//        castle_short[WHITE] = castle_00[WHITE];
+//        castle_short[BLACK] = castle_00[BLACK];
+//        occupancy[from] = ptype;
+//        occupancy[to] = to_piece;
+//    }
+
+
+//    return success;
+//}
+
 
 //TODO: merge all movegen functions into one big?
 //or inline or #define stuff
@@ -712,7 +871,7 @@ U8 BitBoard::get(Square line, Square rank) const {
 
 
     //TODO remove debug overhead
-    piece = occupancy[bit];
+    //piece = occupancy[bit];
 
     for(int p = PAWN; p <= KING; p++) {
         if(pieces_by_type_bb[p] & iBitMask(bit)) {
@@ -721,10 +880,10 @@ U8 BitBoard::get(Square line, Square rank) const {
         }
     }
 
-    if(piece != occupancy[bit]) {
-        ERROR("BitBoard::get() : boards not synced...");
-        exit(1); //BANG BANG
-    }
+//    if(piece != occupancy[bit]) {
+//        ERROR("BitBoard::get() : boards not synced...");
+//        exit(1); //BANG BANG
+//    }
 
 
     return piece | color_offset;
@@ -735,7 +894,7 @@ void BitBoard::set(Square line, Square rank, OccupancyType type) {
     const U8 bit = 8*rank + line; //8*y + x == bit position in U64
 
     if(type == EMPTY) {
-        occupancy[bit] = EMPTY;
+        //occupancy[bit] = EMPTY;
         U64 rmask = ~(iBitMask(bit));
         pieces_by_color_bb[WHITE] &= rmask;
         pieces_by_color_bb[BLACK] &= rmask;
@@ -743,7 +902,7 @@ void BitBoard::set(Square line, Square rank, OccupancyType type) {
             pieces_by_type_bb[p] &= rmask;
         }
     } else {
-        occupancy[bit] = (type & MASK_PIECE);
+        //occupancy[bit] = (type & MASK_PIECE);
         U64 amask = iBitMask(bit);
         pieces_by_type_bb[type & MASK_PIECE] |= amask;
         U8 color = (type & MASK_COLOR) >> 3;

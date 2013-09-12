@@ -22,8 +22,9 @@ U64 simplePerft(BitBoard &board, int depth, int maxdepth) {
     current_board.genPseudoLegalMoves(mlist);
 
     for(int i = 0; i < mlist.size; i++) {
-        current_board.makeMoveIfLegal(mlist.moves[i]);
-        nodes += simplePerft(current_board, depth + 1, maxdepth);
+        if(current_board.makeLightMove(mlist.moves[i])) {
+            nodes += simplePerft(current_board, depth + 1, maxdepth);
+        }
         current_board = board; //undo
     }
 

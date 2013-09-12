@@ -38,7 +38,8 @@ int main() {
         int mnum = 0;
         cin >> mnum;
         cout << endl;
-        bboard.makeMoveIfLegal(mlist.moves[mnum]);
+        //bboard.makeMoveIfLegal(mlist.moves[mnum]);
+        bboard.makeLightMove(mlist.moves[mnum]);
         bboard.print();
         mlist.reset();
     }
