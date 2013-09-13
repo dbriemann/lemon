@@ -60,7 +60,7 @@ struct BitBoard {
     /*
      * Move generation methods
      */
-    void genPseudoLegalMoves(MoveList &mlist);
+    inline void genPseudoLegalMoves(MoveList &mlist);
     inline void genKnightMoves(MoveList &mlist);
     inline void genPawnMoves(MoveList &mlist);
     inline void genKingMoves(MoveList &mlist);
@@ -76,9 +76,9 @@ struct BitBoard {
     /*
      * Move execution methods
      */
-    bool makeLightMove(Move m);
+    inline bool makeLightMove(Move m);
     //bool makeMoveIfLegal(Move m);
-    bool isAttackedBy(const U64 targets_bb, const U8 atk_color);
+    inline U64 isAttackedBy(const U64 targets_bb, const U8 atk_color);
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -168,7 +168,9 @@ void BitBoard::zeroAll() {
  * works only with copy/make functionality. remains in illegal
  * state to increase performance.
  */
+inline
 bool BitBoard::makeLightMove(Move m) {
+    //cout << "Try move: " << moveToStr(m) << endl;
     /*
      * extraction of move features
      */
@@ -182,6 +184,7 @@ bool BitBoard::makeLightMove(Move m) {
     //reset ep square
     //const U8 target_piece = occupancy[to];
     en_passent_sq = NONE;
+    U64 check_bb = 0;
 
 
     /*
@@ -219,19 +222,17 @@ bool BitBoard::makeLightMove(Move m) {
             //check if capture disables opponent
             //from future castling by capturing a rook
             //if(target_piece == ROOK) {
-                if(to == CASTLE_SHORT_ROOK[opponent]) {
-                    castle_short[opponent] = false;
-                } else if(to == CASTLE_LONG_ROOK[opponent]) {
-                    castle_long[opponent] = false;
-                }
+            if(to == CASTLE_SHORT_ROOK[opponent]) {
+                castle_short[opponent] = false;
+            } else if(to == CASTLE_LONG_ROOK[opponent]) {
+                castle_long[opponent] = false;
+            }
             //}
         }
 
         //reset draw counter
         draw_counter = 0;
     } else {
-        const U32 castleflag = moveGetFeature(m, CASTLE_MASK, CASTLE_SHIFT);
-
         //special non capture moves
         if(ptype == PAWN) {
             draw_counter = 0;
@@ -239,10 +240,16 @@ bool BitBoard::makeLightMove(Move m) {
                 en_passent_sq = to - PAWN_MOVE_DIRECTIONS[player];
             }
         } else if(ptype == KING) {
+            const U32 castleflag = moveGetFeature(m, CASTLE_MASK, CASTLE_SHIFT);
             if(castleflag) {
                 //TODO check squares for attacks + check
                 //TODO castling flag -> castling type??
                 if(to == CASTLE_SHORT_TARGET[player]) {
+                    check_bb |= CASTLE_SHORT_PATH[player];
+                    if(is_check || isAttackedBy(check_bb, FLIP(player))) {
+                        //cout << "CASTLE SHORT CANCEL" << endl;
+                        return false;
+                    }
                     //castle short
                     //move rook..
                     //swap(occupancy[CASTLE_SHORT_ROOK[player]], occupancy[CASTLE_SHORT_ROOK_TARGET[player]]);
@@ -251,6 +258,11 @@ bool BitBoard::makeLightMove(Move m) {
                     pieces_by_type_bb[ROOK] &= ~iBitMask(CASTLE_SHORT_ROOK[player]);
                     pieces_by_type_bb[ROOK] |= iBitMask(CASTLE_SHORT_ROOK_TARGET[player]);
                 } else {
+                    check_bb |= CASTLE_LONG_CHECK_PATH[player];
+                    if(is_check || isAttackedBy(check_bb, FLIP(player))) {
+                        //cout << "CASTLE LONG CANCEL" << endl;
+                        return false;
+                    }
                     //castle long
                     //move rook..
                     //swap(occupancy[CASTLE_LONG_ROOK[player]], occupancy[CASTLE_LONG_ROOK_TARGET[player]]);
@@ -260,13 +272,21 @@ bool BitBoard::makeLightMove(Move m) {
                     pieces_by_type_bb[ROOK] |= iBitMask(CASTLE_LONG_ROOK_TARGET[player]);
                 }
             }
-
-            kings[player] = to;
-
-            //king moves always disable all castling rights
-            castle_long[player] = false;
-            castle_short[player] = false;
         }
+    }
+
+    if(ptype == ROOK) {
+        //disable castling on rook moves
+        if(from == CASTLE_SHORT_ROOK[player]) {
+            castle_short[player] = false;
+        } else if(from == CASTLE_LONG_ROOK[player]) {
+            castle_long[player] = false;
+        }
+    } else if(ptype == KING) {
+        kings[player] = to;
+        //king moves always disable all castling rights
+        castle_long[player] = false;
+        castle_short[player] = false;
     }
 
     /*
@@ -283,6 +303,12 @@ bool BitBoard::makeLightMove(Move m) {
         pieces_by_type_bb[promtype] |= iBitMask(to);
     }
 
+    check_bb = iBitMask(kings[player]);
+    if(isAttackedBy(check_bb, FLIP(player))) {
+        //cout << "ATTACK CHECK CANCEL" << endl;
+        return false;
+    }
+
     /*
      * finish everything
      */
@@ -297,6 +323,8 @@ bool BitBoard::makeLightMove(Move m) {
     //determine check status
     if(isAttackedBy(iBitMask(kings[player]), FLIP(player))) {
         is_check = true;
+    } else {
+        is_check = false;
     }
 
     return true;
@@ -454,13 +482,19 @@ bool BitBoard::makeLightMove(Move m) {
 
 //TODO: merge all movegen functions into one big?
 //or inline or #define stuff
+inline
 void BitBoard::genPseudoLegalMoves(MoveList &mlist) {
-    genQueenMoves(mlist);
-    genRookMoves(mlist);
-    genBishopMoves(mlist);
-    genKnightMoves(mlist);
-    genPawnMoves(mlist);
-    genKingMoves(mlist);
+    //TODO
+//    if(is_check) {
+//        ERROR("CHECK MOVE GEN");
+//    } else {
+        genQueenMoves(mlist);
+        genRookMoves(mlist);
+        genBishopMoves(mlist);
+        genKnightMoves(mlist);
+        genPawnMoves(mlist);
+        genKingMoves(mlist);
+//    }
 }
 
 inline
@@ -720,23 +754,26 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
 }
 
 /*
- * checks if the current player is in check
+ * checks if any of the squares in targets_bb are attacked
+ * by the pieces of player atk_color
+ * returns a bitboard with the attacker's bits set, 0 == no attacker
  */
 inline
-bool BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
+U64 BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
     register U64 opp_bb = pieces_by_color_bb[atk_color] & pieces_by_type_bb[KNIGHT];
     register U64 bb = targets_bb;
+    register U64 check;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     U8 sq;
     //test all opponent pieces for attacks on targets_bb
     //treat targets as knights
     while(bb) {
         sq = bitscanfwd(bb);
-
-        if(KNIGHT_TARGET_BBS[sq] & opp_bb) {
-            ERROR("KNIGHT CHECKS FROM " + intToString(sq));
-            print();
-            return true;
+        check = KNIGHT_TARGET_BBS[sq] & opp_bb;
+        if(check) {
+            //ERROR("KNIGHT CHECKS FROM " + intToString(sq));
+            //PRINTBB(check, "KNIGHT ATTACK");
+            return check;
         }
 
         bb &= ~iBitMask(sq);
@@ -748,10 +785,14 @@ bool BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
     while(bb) {
         sq = bitscanfwd(bb);
 
-        if((genDiagAttacks(occ_bb, sq) | genAntiDiagAttacks(occ_bb, sq)) & opp_bb) {
-            ERROR("BISHOP/QUEEN CHECKS FROM " + intToString(sq));
-            print();
-            return true;
+        //PRINTBB(genDiagAttacks(occ_bb, sq), "DIAG");
+        //PRINTBB(genAntiDiagAttacks(occ_bb, sq), "ANTI-DIAG");
+
+        check = (genDiagAttacks(occ_bb, sq) | genAntiDiagAttacks(occ_bb, sq)) & opp_bb;
+        if(check) {
+            //ERROR("BISHOP/QUEEN CHECKS FROM " + intToString(sq));
+            //PRINTBB(check, "BISHOP/QUEEN ATTACK");
+            return check;
         }
         bb &= ~iBitMask(sq);
     }
@@ -762,10 +803,11 @@ bool BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
     while(bb) {
         sq = bitscanfwd(bb);
 
-        if((genRankAttacks(occ_bb, sq) | genFileAttacks(occ_bb, sq)) & opp_bb) {
-            ERROR("ROOK/QUEEN CHECKS FROM " + intToString(sq));
-            print();
-            return true;
+        check = (genRankAttacks(occ_bb, sq) | genFileAttacks(occ_bb, sq)) & opp_bb;
+        if(check) {
+            //ERROR("ROOK/QUEEN CHECKS FROM " + intToString(sq));
+            //PRINTBB(check, "ROOK/QUEEN ATTACK");
+            return check;
         }
         bb &= ~iBitMask(sq);
     }
@@ -775,25 +817,26 @@ bool BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
     bb = targets_bb;
 
     if(atk_color == WHITE) {
-        bb = (_SHIFT_NE(bb) & (opp_bb & ~FILE_A)) | (_SHIFT_NW(bb) & (opp_bb & ~FILE_H));
-    } else {
         bb = (_SHIFT_SE(bb) & (opp_bb & ~FILE_A)) | (_SHIFT_SW(bb) & (opp_bb & ~FILE_H));
+    } else {
+        bb = (_SHIFT_NE(bb) & (opp_bb & ~FILE_A)) | (_SHIFT_NW(bb) & (opp_bb & ~FILE_H));
     }
 
+
     if(bb) {
-        ERROR("PAWN CHECKS FROM " + intToString(sq));
-        print();
         //found pawn attacks on targets
-        return true;
+        //ERROR("PAWN CHECKS FROM " + intToString(sq));
+        //PRINTBB(check, "PAWN ATTACK");
+        return bb;
     }
 
     //treat targets as kings
     //opp_bb = pieces_by_color_bb[atk_color] | pieces_by_type_bb[KING];
     bb = KING_TARGET_BBS[kings[atk_color]] & targets_bb;
     if(bb) {
-        ERROR("KING CHECKS FROM " + intToString(sq));
-        print();
-        return true;
+        //ERROR("KING CHECKS FROM " + intToString(sq));
+        //PRINTBB(check, "KING ATTACK");
+        return bb;
     }
 
     return false;
@@ -803,7 +846,7 @@ inline
 void BitBoard::genPawnMoves(MoveList &mlist) {
     const U64 unocc_bb = ~(pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK]);
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
-    const U64 own_bb = pieces_by_color_bb[player];
+    const U64 own_bb = pieces_by_color_bb[player] & pieces_by_type_bb[PAWN];
     Move m = 0;
     U32 from, to;
     register U64 bb;

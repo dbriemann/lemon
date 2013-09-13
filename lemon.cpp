@@ -21,7 +21,6 @@ int main() {
     //bboard.setFENPosition("3k4/2b5/4b3/8/8/3B4/8/B5K1 w - - 0 1");
     //bboard.setFENPosition("3k4/2b5/4b3/8/8/3B4/8/B5K1 b - - 0 1");
 
-
     while(true) {
         bboard.print();
         //bboard.player = BLACK;
