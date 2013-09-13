@@ -36,7 +36,8 @@ struct BitBoard {
 
 
     /*
-     * Constructors, copy-constructor, move constructor, destructor
+     * Constructors, copy-constructor, destructor
+     * move constructor?, move assignment operator?
      * operators and related stuff
      */
     BitBoard();
@@ -77,8 +78,7 @@ struct BitBoard {
      */
     bool makeLightMove(Move m);
     //bool makeMoveIfLegal(Move m);
-    bool isAttacked(const U8 sq);
-    bool probeCheck();
+    bool isAttackedBy(const U64 targets_bb, const U8 atk_color);
 
 //    int32_t eval();
 //    void setStartingPosition();
@@ -156,16 +156,7 @@ void BitBoard::zeroAll() {
 //    }
 }
 
-/*
- * checks if the current player is in check
- */
-bool BitBoard::probeCheck() {
-    bool check = false;
 
-
-
-    return check;
-}
 
 /*
  * executes a move and checks for legality
@@ -301,6 +292,11 @@ bool BitBoard::makeLightMove(Move m) {
     player = FLIP(player);
     if(player == WHITE) {
         move_number++;
+    }
+
+    //determine check status
+    if(isAttackedBy(iBitMask(kings[player]), FLIP(player))) {
+        is_check = true;
     }
 
     return true;
@@ -721,6 +717,86 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
 
         play_knights_bb &= ~iBitMask(from);
     }
+}
+
+/*
+ * checks if the current player is in check
+ */
+inline
+bool BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
+    register U64 opp_bb = pieces_by_color_bb[atk_color] & pieces_by_type_bb[KNIGHT];
+    register U64 bb = targets_bb;
+    const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
+    U8 sq;
+    //test all opponent pieces for attacks on targets_bb
+    //treat targets as knights
+    while(bb) {
+        sq = bitscanfwd(bb);
+
+        if(KNIGHT_TARGET_BBS[sq] & opp_bb) {
+            ERROR("KNIGHT CHECKS FROM " + intToString(sq));
+            print();
+            return true;
+        }
+
+        bb &= ~iBitMask(sq);
+    }
+
+    //treat targets as bishops //include queen
+    bb = targets_bb;
+    opp_bb = pieces_by_color_bb[atk_color] & (pieces_by_type_bb[BISHOP] | pieces_by_type_bb[QUEEN]);
+    while(bb) {
+        sq = bitscanfwd(bb);
+
+        if((genDiagAttacks(occ_bb, sq) | genAntiDiagAttacks(occ_bb, sq)) & opp_bb) {
+            ERROR("BISHOP/QUEEN CHECKS FROM " + intToString(sq));
+            print();
+            return true;
+        }
+        bb &= ~iBitMask(sq);
+    }
+
+    //treat targets as rooks //include queen
+    bb = targets_bb;
+    opp_bb = pieces_by_color_bb[atk_color] & (pieces_by_type_bb[ROOK] | pieces_by_type_bb[QUEEN]);
+    while(bb) {
+        sq = bitscanfwd(bb);
+
+        if((genRankAttacks(occ_bb, sq) | genFileAttacks(occ_bb, sq)) & opp_bb) {
+            ERROR("ROOK/QUEEN CHECKS FROM " + intToString(sq));
+            print();
+            return true;
+        }
+        bb &= ~iBitMask(sq);
+    }
+
+    //treat targets as pawns
+    opp_bb = pieces_by_color_bb[atk_color] & pieces_by_type_bb[PAWN];
+    bb = targets_bb;
+
+    if(atk_color == WHITE) {
+        bb = (_SHIFT_NE(bb) & (opp_bb & ~FILE_A)) | (_SHIFT_NW(bb) & (opp_bb & ~FILE_H));
+    } else {
+        bb = (_SHIFT_SE(bb) & (opp_bb & ~FILE_A)) | (_SHIFT_SW(bb) & (opp_bb & ~FILE_H));
+    }
+
+    if(bb) {
+        ERROR("PAWN CHECKS FROM " + intToString(sq));
+        print();
+        //found pawn attacks on targets
+        return true;
+    }
+
+    //treat targets as kings
+    //opp_bb = pieces_by_color_bb[atk_color] | pieces_by_type_bb[KING];
+    bb = KING_TARGET_BBS[kings[atk_color]] & targets_bb;
+    if(bb) {
+        ERROR("KING CHECKS FROM " + intToString(sq));
+        print();
+        return true;
+    }
+
+    return false;
 }
 
 inline
