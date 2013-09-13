@@ -20,7 +20,6 @@ U64 simplePerft(BitBoard &board, int depth, int maxdepth) {
 
     BitBoard current_board(board);
     current_board.genPseudoLegalMoves(mlist);
-    //cout << "Moves: " << mlist.size << endl;
 
     for(int i = 0; i < mlist.size; i++) {
         if(current_board.makeLightMove(mlist.moves[i])) {
@@ -32,33 +31,59 @@ U64 simplePerft(BitBoard &board, int depth, int maxdepth) {
     return nodes;
 }
 
+void runTests(string fen, int maxdepth, U64 compare_results[]) {
+    BitBoard b;
+    b.setFENPosition(fen);
+
+    cout << "******************************************************************************************" << endl;
+    cout << "FEN: " << fen << endl << endl;
+
+    for(int d = 1; d <= maxdepth; d++) {
+        timer.start();
+        U64 result = simplePerft(b, 0, d);
+        double t = timer.get_elapsed();
+        cout << "Depth: " << d << " Nodes: " << result << "   ---> " << ((result == compare_results[d]) ? "^PASS^" : "_FAIL_") << endl;
+        cout << "        " << "Time: " << t << " sec. | n/sec:" << fixed << (double)result/t << endl;
+    }
+
+    cout << "******************************************************************************************" << endl;
+}
+
 int main() {
-    BitBoard board;
-    BitBoard acopy;
-    BitBoard bcopy;
-    BitBoard ccopy;
-    //board.setStartingPosition();
-    board.setFENPosition("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+    string fen1 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    U64 set1[7] = {0ULL, 20ULL, 400ULL, 8902ULL, 197281ULL, 4865609ULL, 119060324ULL};
+    runTests(fen1, 6, set1);
 
-    //board.setFENPosition("r3k2r/p1ppqpb1/bn2pnN1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1");
-    //board.setFENPosition("r3k2r/p1ppqpb1/bn2pnN1/3P4/1p2P3/2N2Q2/PPPBBPpP/R3K2R w KQkq - 0 2");
-    //board.setFENPosition("r3k2r/p1ppqpb1/1n2pnN1/3P4/1p2P3/2N2Q1p/PPPBbPPP/R3K2R w KQkq - 0 2");
-    //board.setFENPosition("r3k2r/p1ppqpb1/1n2pnN1/1N1P4/1p2P3/5Q1p/PPPBbPPP/R3K2R b KQkq - 1 2");
-    //board.setFENPosition("2kr3r/p1ppqpb1/1n2pnN1/1N1P4/1p2P3/5Q1p/PPPBbPPP/R3K2R w KQ - 2 3");
-    //board.setFENPosition("2kr3r/p1ppqpb1/1n2pnN1/1N1P4/1p2P3/5Q1P/PPPBbP1P/R3K2R b KQ - 0 3");
+    string fen2 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+    U64 set2[6] = {0ULL, 48ULL, 2039ULL, 97862ULL, 4085603ULL, 193690690ULL};
+    runTests(fen2, 5, set2);
 
-    //board.setFENPosition("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4K1R b kq - 1 1");
-    //board.setFENPosition("r4rk1/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4K1R w - - 2 2");
-    //board.setFENPosition("r3k2r/p1ppqpb1/bn2pnp1/1B1PN3/1p2P3/2N2Q1p/PPPB1PPP/R3K2R b KQkq - 1 1");
-    //board.setFENPosition("r3k2r/p2pqpb1/bn2pnp1/1BpPN3/1p2P3/2N2Q1p/PPPB1PPP/R3K2R w KQkq c6 0 2");
+    string fen3 = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+    U64 set3[8] = {0ULL, 14ULL, 191ULL, 2812ULL, 43238ULL, 674624ULL, 11030083ULL, 178633661ULL};
+    runTests(fen3, 7, set3);
 
-    //board.setFENPosition("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4RK1 b kq - 1 1");
-    //board.setFENPosition("r3k3/p1ppqpb1/bn2pnp1/3PN3/1p2P2r/2N2Q1p/PPPBBPPP/R4RK1 w q - 2 2");
-    //board.setFENPosition("r3k2r/p1ppqpb1/bn2p1p1/3PN3/1p2n3/2N2Q1p/PPPBBPPP/R4RK1 w kq - 0 2");
-    //board.setFENPosition("r3k2r/p1ppqNb1/bn2p1p1/3P4/1p2n3/2N2Q1p/PPPBBPPP/R4RK1 b kq - 0 2");
+    string fen4 = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+    U64 set4[7] = {0ULL, 6ULL, 264ULL, 9467ULL, 422333ULL, 15833292ULL, 706045033ULL};
+    runTests(fen4, 6, set4);
 
-    //board.setFENPosition("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4K1R b kq - 1 1");
-    //board.setFENPosition("r3k2r/p1ppqpb1/1n2pnp1/3PN3/1p2P3/2N2Q1p/PPPBbPPP/R4K1R w kq - 0 2");
+    string fen5 = "rnbqkb1r/pp1p1ppp/2p5/4P3/2B5/8/PPP1NnPP/RNBQK2R w KQkq - 0 6";
+    U64 set5[4] = {0ULL, 42ULL, 1352ULL, 53392ULL};
+    runTests(fen5, 3, set5);
+
+    string fen6 = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
+    U64 set6[8] = {0ULL, 46ULL, 2079ULL, 89890ULL, 3894594ULL, 164075551ULL, 6923051137ULL};//, 287188994746ULL};
+    runTests(fen6, 6, set6);
+
+    return 0;
+}
+
+
+
+
+
+
+
+
 /*
     MoveList mlist;
     acopy = board;
@@ -72,13 +97,13 @@ int main() {
     }
     cout << endl;
 */
-
-    int maxdepth = 6;
+/*
+    int maxdepth = 5;
 
 
     for(int d = 1; d <= maxdepth; d++) {
         timer.start();
-        int p = simplePerft(board, 0, d);
+        U64 p = simplePerft(board, 0, d);
         double t = timer.get_elapsed();
         cout << "depth=" << d << " | perft=" << p << " | time=" << fixed << t << " sec. | n_sec=" << (double)p/t << endl;
 
@@ -87,7 +112,7 @@ int main() {
         MoveList mlist;
         board.genPseudoLegalMoves(mlist);
         acopy = board;
-/*
+
         if(d > 1) {
             for(int i = 0; i < mlist.size; i++) {
                 cout << moveToStr(mlist.moves[i]) << "   ";
@@ -136,9 +161,6 @@ int main() {
                 acopy = board;
             }
         }
-*/
+
     }
-
-
-    return 0;
-}
+*/
