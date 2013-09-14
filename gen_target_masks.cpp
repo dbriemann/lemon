@@ -353,6 +353,20 @@ void genFillUpMask() {
     cout << endl << "};" << endl;
 }
 
+void genIndexArray() {
+    cout << "static const U64 BOARDS_BY_INDEX[64] = {" << endl;
+    for(int i = 0; i < 64; i++) {
+        if(i >= 1) {
+            cout << ", ";
+        }
+        if(i % 8 == 0) {
+            cout << endl << "    ";
+        }
+        cout << "0x" << hex << uppercase << iBitMask(i);
+    }
+    cout << endl << "};" << endl;
+}
+
 int main() {
 
     //genKnightsTargets();
@@ -364,7 +378,8 @@ int main() {
     //genDiags();
     //genBlockedDiagAttack();
     //genFillUpMask();
-    genAntiDiags();
+    //genAntiDiags();
+    genIndexArray();
 
     return 0;
 }

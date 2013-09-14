@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <vector>
 #include <cstdint>
+#include <cstring>
 using namespace std;
 
 #include "BitBoard.hpp"
@@ -32,7 +33,9 @@ U64 simplePerft(int depth, int maxdepth) {
         if(cur_board.makeLightMove(mlist.moves[i])) {
             nodes += simplePerft(depth + 1, maxdepth);
         }
-        cur_board = last_board; //undo
+        cur_board = last_board; //undo //uses memcpy
+        //HACK memcpy
+        //memcpy(&cur_board, &last_board, sizeof(BitBoard));
     }
 
     return nodes;

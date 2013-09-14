@@ -15,7 +15,8 @@ typedef uint64_t U64; typedef int64_t I64;
 typedef U8 Square;
 //typedef I8 Offset;
 #define C64(constantU64) constantU64##ULL
-#define iBitMask(i) (1ULL << (i))
+//#define iBitMask(i) (1ULL << (i))
+#define iBitMask(i) (BOARDS_BY_INDEX[i])
 
 
 /*
@@ -41,6 +42,34 @@ enum OccupancyType {
     BPAWN=8, BKNIGHT, BBISHOP, BROOK, BQUEEN, BKING
 };
 
+
+/*
+ * Rank & file definitions
+ */
+#define FILE_A 0x0101010101010101ULL
+#define FILE_B 0x0202020202020202ULL
+#define FILE_C 0x0404040404040404ULL
+#define FILE_D 0x0808080808080808ULL
+#define FILE_E 0x1010101010101010ULL
+#define FILE_F 0x2020202020202020ULL
+#define FILE_G 0x4040404040404040ULL
+#define FILE_H 0x8080808080808080ULL
+
+#define RANK_1 0x00000000000000FFULL
+#define RANK_2 0x000000000000FF00ULL
+#define RANK_3 0x0000000000FF0000ULL
+#define RANK_4 0x00000000FF000000ULL
+#define RANK_5 0x000000FF00000000ULL
+#define RANK_6 0x0000FF0000000000ULL
+#define RANK_7 0x00FF000000000000ULL
+#define RANK_8 0xFF00000000000000ULL
+
+#define EP_RANKS 0x0000FF0000FF0000ULL
+
+
+#define SQ(f,r) (((r) << 3) | (f))
+#define FILE(sq) ((sq) &  7)
+#define RANK(sq) ((sq) >> 3)
 
 /*
  * Movement definitions
@@ -83,34 +112,20 @@ static const int PAWN_MOVE_DIRECTIONS[2] = {8, -8};
 static const int PAWN_CAP_EAST_DIRECTIONS[2] = {9, -7};
 static const int PAWN_CAP_WEST_DIRECTIONS[2] = {7, -9};
 
-
-/*
- * Rank & file definitions
- */
-#define FILE_A 0x0101010101010101ULL
-#define FILE_B 0x0202020202020202ULL
-#define FILE_C 0x0404040404040404ULL
-#define FILE_D 0x0808080808080808ULL
-#define FILE_E 0x1010101010101010ULL
-#define FILE_F 0x2020202020202020ULL
-#define FILE_G 0x4040404040404040ULL
-#define FILE_H 0x8080808080808080ULL
-
-#define RANK_1 0x00000000000000FFULL
-#define RANK_2 0x000000000000FF00ULL
-#define RANK_3 0x0000000000FF0000ULL
-#define RANK_4 0x00000000FF000000ULL
-#define RANK_5 0x000000FF00000000ULL
-#define RANK_6 0x0000FF0000000000ULL
-#define RANK_7 0x00FF000000000000ULL
-#define RANK_8 0xFF00000000000000ULL
-
-#define EP_RANKS 0x0000FF0000FF0000ULL
-
-
-#define SQ(f,r) (((r) << 3) | (f))
-#define FILE(sq) ((sq) &  7)
-#define RANK(sq) ((sq) >> 3)
+//TODO: should be faster.. but isn't...
+//static const int PAWN_MOVE_DIRS_RELATIVE[2] = {8, 64-8};
+//static const int PAWN_CAP_EAST_DIRS_RELATIVE[2] = {9, 64-7};
+//static const int PAWN_CAP_WEST_DIRS_RELATIVE[2] = {7, 64-9};
+//static const U64 PAWN_PROMOTION_MASKS[2] = {RANK_8, RANK_1};
+//static const U64 PAWN_TWO_STEP_MASKS[2] = {RANK_3, RANK_6};
+//inline U64 circular_left_shift(U64 target, int shift){
+//    return target << shift | target >> (64-shift);
+//}
+//inline U64 circular_left_shift(uint64_t x, int s) {
+//   char left  =   (char) s;
+//   char right = -((char)(s >> 8) & left);
+//   return (x >> right) << (right + left);
+//}
 
 
 /*
@@ -209,6 +224,16 @@ static const U64 DIAG_ATTACK_BBS[8][64] = {
 };
 
 
+static const U64 BOARDS_BY_INDEX[64] = {
+    0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
+    0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000,
+    0x10000, 0x20000, 0x40000, 0x80000, 0x100000, 0x200000, 0x400000, 0x800000,
+    0x1000000, 0x2000000, 0x4000000, 0x8000000, 0x10000000, 0x20000000, 0x40000000, 0x80000000,
+    0x100000000, 0x200000000, 0x400000000, 0x800000000, 0x1000000000, 0x2000000000, 0x4000000000, 0x8000000000,
+    0x10000000000, 0x20000000000, 0x40000000000, 0x80000000000, 0x100000000000, 0x200000000000, 0x400000000000, 0x800000000000,
+    0x1000000000000, 0x2000000000000, 0x4000000000000, 0x8000000000000, 0x10000000000000, 0x20000000000000, 0x40000000000000, 0x80000000000000,
+    0x100000000000000, 0x200000000000000, 0x400000000000000, 0x800000000000000, 0x1000000000000000, 0x2000000000000000, 0x4000000000000000, 0x8000000000000000
+};
 
 
 

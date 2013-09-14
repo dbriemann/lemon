@@ -1,2 +1,11 @@
-g++ 
+14. Sep. 2013
+-------------------------------------------
+movegen_1(g++):
 NODES/SEC   : 18889233.425210
+
+movegen_1(g++) & memcpy boards
+NODES/SEC   : 19938475.844512
+
+movegen_1(g++) & memcpy boards & index boards lookup table
+NODES/SEC   : 20594804.511160
+
