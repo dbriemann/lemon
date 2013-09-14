@@ -88,98 +88,11 @@ int main() {
     U64 set6[8] = {0ULL, 46ULL, 2079ULL, 89890ULL, 3894594ULL};//, 164075551ULL};//, 6923051137ULL};//, 287188994746ULL};
     runTests(fen6, 4, set6);
 
-
+    cout << endl << endl;
     cout << "TOTAL TIME  : " << total_time << " sec." << endl;
     cout << "TOTAL NODES : " << total_nodes << endl;
-    cout << "NODES/SEC   : " << (double)total_time / (double)total_nodes << endl;
+    cout << "NODES/SEC   : " << (double)total_nodes / total_time << endl;
 
     return 0;
 }
 
-
-
-
-
-
-
-
-/*
-    MoveList mlist;
-    acopy = board;
-    acopy.genPseudoLegalMoves(mlist);
-    for(int i = 0; i < mlist.size; i++) {
-        if(acopy.makeLightMove(mlist.moves[i])) {
-            cout << moveToStr(mlist.moves[i]) << " --> " << acopy.getFENCode() << endl;
-
-        }
-        acopy = board;
-    }
-    cout << endl;
-*/
-/*
-    int maxdepth = 5;
-
-
-    for(int d = 1; d <= maxdepth; d++) {
-        timer.start();
-        U64 p = simplePerft(board, 0, d);
-        double t = timer.get_elapsed();
-        cout << "depth=" << d << " | perft=" << p << " | time=" << fixed << t << " sec. | n_sec=" << (double)p/t << endl;
-
-
-        //split run
-        MoveList mlist;
-        board.genPseudoLegalMoves(mlist);
-        acopy = board;
-
-        if(d > 1) {
-            for(int i = 0; i < mlist.size; i++) {
-                cout << moveToStr(mlist.moves[i]) << "   ";
-
-                if(acopy.makeLightMove(mlist.moves[i])) {
-                    int sp = simplePerft(acopy, 0, d-1);
-                    cout << "perft= " << sp << endl;//<< " --> " << copyboard.getFENCode() << endl;
-
-                    bcopy = acopy;
-                    MoveList ml;
-                    bcopy.genPseudoLegalMoves(ml);
-                    if(i == 35) {
-                        for(int m = 0; m < ml.size; m++) {
-                            if(bcopy.makeLightMove(ml.moves[m])) {
-                                cout << "    " << moveToStr(ml.moves[m]) << "   ";
-                                int s = simplePerft(bcopy, 0, d-2);
-                                cout << "perft= " << s << endl;//<< " --> " << copyboard.getFENCode() << endl;
-                                //bcopy.print();
-
-                                if(m == 43) {
-                                    ccopy = bcopy;
-                                    ccopy.print();
-                                    MoveList ml2;
-                                    ccopy.genPseudoLegalMoves(ml2);
-                                    for(int z = 0; z < ml2.size; z++) {
-                                        if(ccopy.makeLightMove(ml2.moves[z])) {
-                                            cout << "        " << moveToStr(ml2.moves[z]) << "   ";
-                                            int abc = simplePerft(ccopy, 0, d-3);
-                                            cout << "perft= " << abc << endl;//<< " --> " << copyboard.getFENCode() << endl;
-    //                                        if(ccopy.makeLightMove(ml2.moves[z])) {
-    //                                            cout << "        " << moveToStr(ml2.moves[z]) << endl;
-    //                                        }
-                                        }
-                                        ccopy = bcopy;
-                                    }
-                                }
-                            }
-                            bcopy = acopy;
-                        }
-                    }
-
-
-                } else {
-                    cout << "invalid" << endl;
-                }
-                acopy = board;
-            }
-        }
-
-    }
-*/

@@ -60,32 +60,27 @@ struct BitBoard {
     /*
      * Move generation methods
      */
-    inline void genPseudoLegalMoves(MoveList &mlist);
-    inline void genKnightMoves(MoveList &mlist);
-    inline void genPawnMoves(MoveList &mlist);
-    inline void genKingMoves(MoveList &mlist);
-    inline void genRookMoves(MoveList &mlist);
-    inline void genBishopMoves(MoveList &mlist);
-    inline void genQueenMoves(MoveList &mlist);
+    void genPseudoLegalMoves(MoveList &mlist);
+    void genKnightMoves(MoveList &mlist);
+    void genPawnMoves(MoveList &mlist);
+    void genKingMoves(MoveList &mlist);
+    void genRookMoves(MoveList &mlist);
+    void genBishopMoves(MoveList &mlist);
+    void genQueenMoves(MoveList &mlist);
 
-    inline U64 genRankAttacks(const U64 occ, const U8 sq);
-    inline U64 genFileAttacks(U64 occ, const U8 sq);
-    inline U64 genDiagAttacks(U64 occ, const U8 sq);
-    inline U64 genAntiDiagAttacks(U64 occ, const U8 sq);
+    U64 genRankAttacks(const U64 occ, const U8 sq);
+    U64 genFileAttacks(U64 occ, const U8 sq);
+    U64 genDiagAttacks(U64 occ, const U8 sq);
+    U64 genAntiDiagAttacks(U64 occ, const U8 sq);
 
     /*
      * Move execution methods
      */
-    inline bool makeLightMove(Move m);
+    bool makeLightMove(Move m);
     //bool makeMoveIfLegal(Move m);
-    inline U64 isAttackedBy(const U64 targets_bb, const U8 atk_color);
+    U64 isAttackedBy(const U64 targets_bb, const U8 atk_color);
 
-//    int32_t eval();
-//    void setStartingPosition();
-//    void genPseudoLegalMoves(vector<Move> &moves);
-//    void makeMove(Move m);
-//    bool undoLastMove();
-//    bool makeMoveIfLegal(Move m);
+
 };
 
 
@@ -168,7 +163,6 @@ void BitBoard::zeroAll() {
  * works only with copy/make functionality. remains in illegal
  * state to increase performance.
  */
-inline
 bool BitBoard::makeLightMove(Move m) {
     //cout << "Try move: " << moveToStr(m) << endl;
     /*
@@ -482,7 +476,6 @@ bool BitBoard::makeLightMove(Move m) {
 
 //TODO: merge all movegen functions into one big?
 //or inline or #define stuff
-inline
 void BitBoard::genPseudoLegalMoves(MoveList &mlist) {
     //TODO
 //    if(is_check) {
@@ -543,7 +536,7 @@ void BitBoard::genKingMoves(MoveList &mlist) {
     }
 }
 
-inline U64 BitBoard::genRankAttacks(const U64 occ, const U8 sq) {
+U64 BitBoard::genRankAttacks(const U64 occ, const U8 sq) {
     //TODO.. U32??
     U32 f = sq & 7;
     U32 r = sq & ~7; //== rank*8
@@ -551,7 +544,7 @@ inline U64 BitBoard::genRankAttacks(const U64 occ, const U8 sq) {
     return ((U64) RANK_ATTACK_BBS[f][o]) << r;
 }
 
-inline U64 BitBoard::genFileAttacks(U64 occ, const U8 sq) {
+U64 BitBoard::genFileAttacks(U64 occ, const U8 sq) {
     //TODO.. U32??
     U32 f = sq & 7;
     occ = FILE_A & (occ >> f);
@@ -559,19 +552,19 @@ inline U64 BitBoard::genFileAttacks(U64 occ, const U8 sq) {
     return FILE_ATTACK_BBS[RANK(sq)][o] << f;
 }
 
-inline U64 BitBoard::genDiagAttacks(U64 occ, const U8 sq) {
+U64 BitBoard::genDiagAttacks(U64 occ, const U8 sq) {
     occ &= A1H8_DIAGONAL_TARGET_BBS[sq];
     occ = (occ * FILE_B) >> 58;
     return A1H8_DIAGONAL_TARGET_BBS[sq] & FILLUP_ATTACK_BBS[sq&7][occ];
 }
 
-inline U64 BitBoard::genAntiDiagAttacks(U64 occ, const U8 sq) {
+U64 BitBoard::genAntiDiagAttacks(U64 occ, const U8 sq) {
     occ &= H1A8_DIAGONAL_TARGET_BBS[sq];
     occ = (occ * FILE_B) >> 58;
     return H1A8_DIAGONAL_TARGET_BBS[sq] & FILLUP_ATTACK_BBS[sq&7][occ];
 }
 
-inline void BitBoard::genQueenMoves(MoveList &mlist) {
+void BitBoard::genQueenMoves(MoveList &mlist) {
     register U64 bb;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     const U64 own_bb = pieces_by_color_bb[player];
@@ -618,7 +611,7 @@ inline void BitBoard::genQueenMoves(MoveList &mlist) {
     }
 }
 
-inline void BitBoard::genBishopMoves(MoveList &mlist) {
+void BitBoard::genBishopMoves(MoveList &mlist) {
     register U64 bb;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     const U64 own_bb = pieces_by_color_bb[player];
@@ -663,7 +656,7 @@ inline void BitBoard::genBishopMoves(MoveList &mlist) {
     }
 }
 
-inline void BitBoard::genRookMoves(MoveList &mlist) {
+void BitBoard::genRookMoves(MoveList &mlist) {
     register U64 bb;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     const U64 own_bb = pieces_by_color_bb[player];
@@ -707,7 +700,7 @@ inline void BitBoard::genRookMoves(MoveList &mlist) {
     }
 }
 
-inline
+
 void BitBoard::genKnightMoves(MoveList &mlist) {
     register U64 bb;
     const U64 unocc_bb = ~(pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK]);
@@ -758,7 +751,7 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
  * by the pieces of player atk_color
  * returns a bitboard with the attacker's bits set, 0 == no attacker
  */
-inline
+
 U64 BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
     register U64 opp_bb = pieces_by_color_bb[atk_color] & pieces_by_type_bb[KNIGHT];
     register U64 bb = targets_bb;
@@ -842,7 +835,7 @@ U64 BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
     return false;
 }
 
-inline
+
 void BitBoard::genPawnMoves(MoveList &mlist) {
     const U64 unocc_bb = ~(pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK]);
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
@@ -1008,7 +1001,6 @@ U8 BitBoard::get(Square line, Square rank) const {
     return piece | color_offset;
 }
 
-inline
 void BitBoard::set(Square line, Square rank, OccupancyType type) {
     const U8 bit = 8*rank + line; //8*y + x == bit position in U64
 
@@ -1156,7 +1148,7 @@ void BitBoard::setFENPosition(string fen) {
             //no en passent
             en_passent_sq = NONE;
         } else {
-            for(int i = 0; i < ep.size(); i+=2) {
+            for(U32 i = 0; i < ep.size(); i+=2) {
                 if(ep[i] >= 'a' && ep[i] <= 'h' && ep[i+1] >= '1' && ep[i+1] <= '8') {
                     int x = ep[i] - 'a';
                     int y = ep[i+1] - '1';
