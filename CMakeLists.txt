@@ -1,3 +1,6 @@
+
+#-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+
 project(lemon)
 
 cmake_minimum_required(VERSION 2.8)
@@ -24,5 +27,3 @@ target_link_libraries(gen_target_masks liblemon)
 #perft executable
 add_executable(perftbb perftbb.cpp)
 target_link_libraries(perftbb liblemon)
-add_executable(seriousperft seriousperft.cpp)
-target_link_libraries(seriousperft liblemon)
