@@ -9,3 +9,5 @@ NODES/SEC   : 19938475.844512
 movegen_1(g++) & memcpy boards & index boards lookup table
 NODES/SEC   : 20594804.511160
 
+movegen_1(g++) & memcpy boards & index boards lookup table & -fno-inline
+NODES/SEC   : 13414142.670500

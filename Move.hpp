@@ -55,7 +55,8 @@ static const U8 CASTLE_LONG_ROOK_TARGET[2] = {3,59};
 #define CASTLE_SHIFT    27
 #define VALUE_SHIFT     28
 
-__attribute__ ((noinline)) Move moveCreate(U32 from, U32 to, U32 ptype, U32 capflag, U32 promtype, U32 eptype, U32 castleflag, U32 value) {
+//__attribute__ ((noinline))
+Move moveCreate(U32 from, U32 to, U32 ptype, U32 capflag, U32 promtype, U32 eptype, U32 castleflag, U32 value) {
     Move m = from;
     to <<= TO_SHIFT;
     ptype <<= PIECE_SHIFT;    
@@ -71,13 +72,15 @@ __attribute__ ((noinline)) Move moveCreate(U32 from, U32 to, U32 ptype, U32 capf
 }
 
 
-__attribute__ ((noinline)) void moveSetFeature(Move &m, const U32 mask, const U32 shift, U32 bits) {
+//__attribute__ ((noinline))
+void moveSetFeature(Move &m, const U32 mask, const U32 shift, U32 bits) {
     m &= ~mask;
     bits <<= shift;
     m |= bits;
 }
 
-__attribute__ ((noinline)) U32 moveGetFeature(const Move &m, const U32 mask, const U32 shift) {
+//__attribute__ ((noinline))
+U32 moveGetFeature(const Move &m, const U32 mask, const U32 shift) {
     return (m & mask) >> shift;
 }
 

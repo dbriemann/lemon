@@ -1,0 +1,100 @@
+ public void generateOccupancyVariations(boolean isRook)
+{
+    int i, j, bitRef;
+    long mask;
+    int variationCount;
+    int[] setBitsInMask, setBitsInIndex;
+    int bitCount[] = new int[64];
+    
+    for (bitRef=0; bitRef<=63; bitRef++)
+    {
+        mask = isRook ? occupancyMaskRook[bitRef] : occupancyMaskBishop[bitRef];
+        setBitsInMask = Bitboards.getSetBits(mask);
+        bitCount[bitRef] = Bitboards.countSetBits(mask);
+        variationCount = (int)(1L << bitCount[bitRef]);
+        for (i=0; i<variationCount; i++)
+        {
+            occupancyVariation[bitRef][i] = 0; 
+
+            // find bits set in index "i" and map them to bits in the 64 bit "occupancyVariation"
+
+            setBitsInIndex = Bitboards.getSetBits(i); // an array of integers showing which bits are set
+            for (j=0; setBitsInIndex[j] != -1; j++)
+            {
+                occupancyVariation[bitRef][i] |= (1L << setBitsInMask[setBitsInIndex[j]]);
+            }
+            
+            if (isRook)
+            {
+                for (j=bitRef+8; j<=55 && (occupancyVariation[bitRef][i] & (1L << j)) == 0; j+=8);
+                if (j>=0 && j<=63) occupancyAttackSet[bitRef][i] |= (1L << j);
+                for (j=bitRef-8; j>=8 && (occupancyVariation[bitRef][i] & (1L << j)) == 0; j-=8);
+                if (j>=0 && j<=63) occupancyAttackSet[bitRef][i] |= (1L << j);
+                for (j=bitRef+1; j%8!=7 && j%8!=0 && (occupancyVariation[bitRef][i] & (1L << j)) == 0; j++);
+                if (j>=0 && j<=63) occupancyAttackSet[bitRef][i] |= (1L << j);
+                for (j=bitRef-1; j%8!=7 && j%8!=0 && j>=0 && (occupancyVariation[bitRef][i] & (1L << j)) == 0; j--);
+                if (j>=0 && j<=63) occupancyAttackSet[bitRef][i] |= (1L << j);
+            }
+            else
+            {
+                for (j=bitRef+9; j%8!=7 && j%8!=0 && j<=55 && (occupancyVariation[bitRef][i] & (1L << j)) == 0; j+=9);
+                if (j>=0 && j<=63) occupancyAttackSet[bitRef][i] |= (1L << j);
+                for (j=bitRef-9; j%8!=7 && j%8!=0 && j>=8 && (occupancyVariation[bitRef][i] & (1L << j)) == 0; j-=9);
+                if (j>=0 && j<=63) occupancyAttackSet[bitRef][i] |= (1L << j);
+                for (j=bitRef+7; j%8!=7 && j%8!=0 && j<=55 && (occupancyVariation[bitRef][i] & (1L << j)) == 0; j+=7);
+                if (j>=0 && j<=63) occupancyAttackSet[bitRef][i] |= (1L << j);
+                for (j=bitRef-7; j%8!=7 && j%8!=0 && j>=8 && (occupancyVariation[bitRef][i] & (1L << j)) == 0; j-=7);
+                if (j>=0 && j<=63) occupancyAttackSet[bitRef][i] |= (1L << j);
+            }
+        }
+    }
+}
+
+public void generateMagicNumbers(boolean isRook)
+{
+    int i, j, bitRef, variationCount;
+    
+    Random r = new Random();
+    long magicNumber = 0;
+    int index;
+    long attackSet;
+    
+    for (bitRef=0; bitRef<=63; bitRef++)
+    {
+        int bitCount = Bitboards.countSetBits(isRook ? occupancyMaskRook[bitRef] : occupancyMaskBishop[bitRef]);
+        variationCount = (int)(1L << bitCount);
+        boolean fail;
+        long usedBy[] = new long[(int)(1L << bitCount)];
+
+        int attempts = 0;
+        
+        do
+        {
+            magicNumber = r.nextLong() & r.nextLong() & r.nextLong(); // generate a random number with not many bits set
+            for (j=0; j<variationCount; j++) usedBy[j] = 0;
+            attempts ++;
+            
+            for (i=0, fail=false; i<variationCount && !fail; i++)
+            {
+                index = (int)((occupancyVariation[bitRef][i] * magicNumber) >>> (64-bitCount));
+                
+                // fail if this index is used by an attack set that is incorrect for this occupancy variation
+                fail = usedBy[index] != 0 && usedBy[index] != occupancyAttackSet[bitRef][i];
+                
+                usedBy[index] = attackSet;
+            }
+        } 
+        while (fail);
+        
+        if (isRook)
+        {
+            magicNumberRook[bitRef] = magicNumber;
+            magicNumberShiftsRook[bitRef] = (64-bitCount);
+        }
+        else
+        {
+            magicNumberBishop[bitRef] = magicNumber;
+            magicNumberShiftsBishop[bitRef] = (64-bitCount);
+        }
+    }
+}
