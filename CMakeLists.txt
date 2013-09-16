@@ -24,6 +24,9 @@ target_link_libraries(lemon liblemon)
 add_executable(gen_target_masks gen_target_masks.cpp)
 target_link_libraries(gen_target_masks liblemon)
 
+add_executable(generate_magic generate_magic.cpp)
+target_link_libraries(generate_magic liblemon)
+
 #perft executable
 add_executable(perftbb perftbb.cpp)
 target_link_libraries(perftbb liblemon)
