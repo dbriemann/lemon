@@ -501,7 +501,7 @@ void BitBoard::genPseudoLegalMoves(MoveList &mlist) {
 
 inline
 void BitBoard::genKingMoves(MoveList &mlist) {
-    register U64 bb;
+    U64 bb;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     const U64 unocc_bb = ~occ_bb;
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
@@ -579,7 +579,7 @@ U64 BitBoard::genAntiDiagAttacks(U64 occ, const U8 sq) {
 
 inline
 void BitBoard::genQueenMoves(MoveList &mlist) {
-    register U64 bb;
+    U64 bb;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     const U64 own_bb = pieces_by_color_bb[player];
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
@@ -627,7 +627,7 @@ void BitBoard::genQueenMoves(MoveList &mlist) {
 
 inline
 void BitBoard::genBishopMoves(MoveList &mlist) {
-    register U64 bb;
+    U64 bb;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     const U64 own_bb = pieces_by_color_bb[player];
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
@@ -673,7 +673,7 @@ void BitBoard::genBishopMoves(MoveList &mlist) {
 
 inline
 void BitBoard::genRookMoves(MoveList &mlist) {
-    register U64 bb;
+    U64 bb;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     const U64 own_bb = pieces_by_color_bb[player];
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
@@ -718,7 +718,7 @@ void BitBoard::genRookMoves(MoveList &mlist) {
 
 inline
 void BitBoard::genKnightMoves(MoveList &mlist) {
-    register U64 bb;
+    U64 bb;
     const U64 unocc_bb = ~(pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK]);
     const U64 opp_bb = pieces_by_color_bb[FLIP(player)];
     Move m = 0;
@@ -769,9 +769,9 @@ void BitBoard::genKnightMoves(MoveList &mlist) {
  */
 inline
 U64 BitBoard::isAttackedBy(const U64 targets_bb, const U8 atk_color) {
-    register U64 opp_bb;
-    register U64 bb;
-    register U64 check = 0;
+    U64 opp_bb;
+    U64 bb;
+    U64 check = 0;
     const U64 occ_bb = pieces_by_color_bb[WHITE] | pieces_by_color_bb[BLACK];
     U8 sq;
 
@@ -841,7 +841,7 @@ void BitBoard::genPawnMoves(MoveList &mlist) {
     const U64 own_bb = pieces_by_color_bb[player] & pieces_by_type_bb[PAWN];
     Move m = 0;
     U32 from, to;
-    register U64 bb;
+    U64 bb;
     U64 two_steppers, capture_west_targets, capture_east_targets, ep_takers, promo_rank;
     U64 ep_target = iBitMask(en_passent_sq) & EP_RANKS;
 

@@ -259,6 +259,7 @@ const U32 index64[64] = {
  * @precondition bb != 0
  * @return index (0..63) of least significant one bit
  */
+inline
 U32 bitscanfwd(U64 bb) {
    return index64[((bb ^ (bb-1)) * DEBRUIJN64) >> 58];
 }
